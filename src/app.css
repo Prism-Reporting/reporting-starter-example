@@ -1,0 +1,88 @@
+.portfolio-app-shell {
+  min-height: 100vh;
+  background: #fff;
+}
+
+.portfolio-app-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.portfolio-app-header-inner,
+.portfolio-app-main {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.portfolio-app-header-inner {
+  display: grid;
+  gap: 12px;
+}
+
+.portfolio-report-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.portfolio-report-button {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.portfolio-prompt-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.portfolio-prompt-input {
+  flex: 1 1 420px;
+  min-width: 280px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.portfolio-prompt-button {
+  padding: 10px 16px;
+}
+
+.portfolio-helper-text {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.portfolio-error-text {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.portfolio-app-main {
+  padding: 12px;
+}
+
+.portfolio-app-main .report-layout-twoColumn .report-grid-two {
+  align-items: start;
+}
+
+.portfolio-app-main .report-table th,
+.portfolio-app-main .report-table td {
+  vertical-align: top;
+}
+
+.portfolio-app-main .report-table-group + .report-table-group {
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 960px) {
+  .portfolio-app-main .report-layout-twoColumn .report-grid-two {
+    grid-template-columns: 1fr;
+  }
+}

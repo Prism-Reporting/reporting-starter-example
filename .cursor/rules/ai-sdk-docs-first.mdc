@@ -1,0 +1,27 @@
+---
+description: Check AI SDK docs before implementing custom agentic logic
+globs: "**/agent/**/*.js,**/agent/**/*.ts,server.js,**/*dashboard*.js"
+alwaysApply: false
+---
+
+# AI SDK and agentic actions — check docs first
+
+Before implementing **custom functions**, **tools**, or **agentic behavior**:
+
+1. **Check the official docs first**: [AI SDK documentation](https://ai-sdk.dev/docs/)
+2. Prefer built-in or documented patterns over one-off custom code.
+
+## When this applies
+
+- Adding or changing tools, agents, or LLM-driven flows
+- Implementing loops, tool calling, streaming, or message handling
+- Using MCP, providers, or model options
+
+## What to do
+
+- **Agents**: See [Agents](https://ai-sdk.dev/docs/agents/overview), [Building Agents](https://ai-sdk.dev/docs/agents/building-agents), [Loop Control](https://ai-sdk.dev/docs/agents/loop-control)
+- **Tools**: See [Tools](https://ai-sdk.dev/docs/foundations/tools), [Tool Calling](https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling)
+- **MCP**: See [MCP](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools) and reference for `createMCPClient`
+- **Streaming / UI**: See [Streaming](https://ai-sdk.dev/docs/foundations/streaming) and [AI SDK UI](https://ai-sdk.dev/docs/ai-sdk-ui/overview)
+
+Only implement custom logic when the docs do not cover the use case or when the task explicitly requires a custom approach.

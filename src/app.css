@@ -1,23 +1,52 @@
+@import 'tailwindcss';
+
 .portfolio-app-shell {
   min-height: 100vh;
-  background: #fff;
+  background: #f8fafc;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    background: #f8fafc;
+  }
+
+  body {
+    min-width: 320px;
+    color: #0f172a;
+    background: radial-gradient(circle at top, rgba(59, 130, 246, 0.08), transparent 40%), #f8fafc;
+  }
+
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
 }
 
 .portfolio-app-header {
   padding: 16px 20px;
   border-bottom: 1px solid #e5e7eb;
-  background: #f8fafc;
+  background: #fff;
 }
 
 .portfolio-app-header-inner,
 .portfolio-app-main {
-  max-width: 1200px;
+  max-width: 1620px;
   margin: 0 auto;
 }
 
 .portfolio-app-header-inner {
   display: grid;
   gap: 12px;
+}
+
+.portfolio-section-title {
+  margin: 0;
+  font-size: 18px;
 }
 
 .portfolio-report-picker {
@@ -32,24 +61,64 @@
   background: #fff;
   border-radius: 6px;
   cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 
-.portfolio-prompt-form {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
+.portfolio-report-button:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
 .portfolio-prompt-input {
-  flex: 1 1 420px;
-  min-width: 280px;
+  width: 100%;
+  min-height: 88px;
   padding: 10px 12px;
   font-size: 14px;
+  line-height: 1.5;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  resize: vertical;
+  background: #fff;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.portfolio-prompt-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
 }
 
 .portfolio-prompt-button {
   padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.portfolio-prompt-button:hover:not(:disabled) {
+  background: #1d4ed8;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
+  transform: translateY(-1px);
+}
+
+.portfolio-prompt-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .portfolio-helper-text {
@@ -66,6 +135,131 @@
 
 .portfolio-app-main {
   padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.portfolio-chat-panel,
+.portfolio-report-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+}
+
+.portfolio-chat-panel {
+  display: grid;
+  grid-template-rows: auto minmax(320px, 1fr) auto;
+  min-height: calc(100vh - 140px);
+}
+
+.portfolio-chat-panel-header,
+.portfolio-report-panel-header,
+.portfolio-chat-composer {
+  padding: 16px;
+}
+
+.portfolio-chat-panel-header,
+.portfolio-report-panel-header {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.portfolio-chat-history {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  overflow: auto;
+}
+
+.portfolio-chat-message {
+  max-width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.portfolio-chat-message-user {
+  background: #dbeafe;
+  border-color: #bfdbfe;
+}
+
+.portfolio-chat-message-assistant {
+  background: #f8fafc;
+}
+
+.portfolio-chat-message-meta {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.portfolio-chat-message-body {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  color: #0f172a;
+}
+
+.portfolio-chat-message-spec,
+.portfolio-chat-message-validation {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.portfolio-debug-trace {
+  margin-top: 12px;
+}
+
+.portfolio-debug-trace summary {
+  cursor: pointer;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.portfolio-debug-trace pre {
+  margin: 10px 0 0;
+  padding: 12px;
+  overflow: auto;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.portfolio-chat-composer {
+  border-top: 1px solid #e5e7eb;
+  display: grid;
+  gap: 10px;
+}
+
+.portfolio-composer-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.portfolio-chat-composer-footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.portfolio-report-panel {
+  overflow: hidden;
+}
+
+.portfolio-report-panel .report-shell {
+  border: 0;
+  border-radius: 0;
+}
+
+.portfolio-report-panel > :last-child {
+  padding: 0 12px 12px;
 }
 
 .portfolio-app-main .report-layout-twoColumn .report-grid-two {
@@ -82,6 +276,19 @@
 }
 
 @media (max-width: 960px) {
+  .portfolio-app-main {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-chat-panel {
+    min-height: auto;
+  }
+
+  .portfolio-chat-composer-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .portfolio-app-main .report-layout-twoColumn .report-grid-two {
     grid-template-columns: 1fr;
   }

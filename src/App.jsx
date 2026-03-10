@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { ReportRenderer, defaultRegistry } from '@reporting/react-ui';
-import { portfolioQuarterlyOverviewSpec, starterReports } from './report-spec.js';
+import { showcaseComplexSpec, starterReports } from './report-spec.js';
 
 function createDataProvider() {
   return {
-    async runQuery({ name, params = {} }) {
+    async runQuery(request) {
       const res = await fetch('/api/runQuery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, params }),
+        body: JSON.stringify(request),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -27,7 +27,7 @@ function useStableChatId() {
 
 export default function App() {
   const dataProvider = useMemo(() => createDataProvider(), []);
-  const [currentSpec, setCurrentSpec] = useState(portfolioQuarterlyOverviewSpec);
+  const [currentSpec, setCurrentSpec] = useState(showcaseComplexSpec);
   const [input, setInput] = useState('');
   const [streamError, setStreamError] = useState(null);
   const clearHistoryNextRef = useRef(false);
@@ -111,16 +111,27 @@ export default function App() {
           </div>
 
           <div className="portfolio-report-picker">
-            {starterReports.map((report) => (
-              <button
-                key={report.id}
-                type="button"
-                onClick={() => handleSelectStarter(report)}
-                className="portfolio-report-button text-sm font-medium text-slate-700"
-              >
-                {report.label}
-              </button>
-            ))}
+            <span className="text-sm text-slate-600 mr-2">
+              {starterReports.find((r) => r.spec.id === currentSpec?.id)?.label ?? currentSpec?.title ?? 'Report'}
+            </span>
+            <label htmlFor="portfolio-report-select" className="sr-only">
+              Select report
+            </label>
+            <select
+              id="portfolio-report-select"
+              value={starterReports.find((r) => r.spec.id === currentSpec?.id)?.id ?? ''}
+              onChange={(e) => {
+                const report = starterReports.find((r) => r.id === e.target.value);
+                if (report) handleSelectStarter(report);
+              }}
+              className="portfolio-report-select text-sm font-medium text-slate-700 border border-slate-300 rounded-md px-3 py-1.5 bg-white"
+            >
+              {starterReports.map((report) => (
+                <option key={report.id} value={report.id}>
+                  {report.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </header>

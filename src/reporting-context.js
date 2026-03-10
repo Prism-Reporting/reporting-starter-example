@@ -86,7 +86,7 @@ function getStarterSemanticContext() {
         prompt: 'Create a simple project report',
         title: 'Simple project report',
         description:
-          'Use the projects query with a KPI valueKey of _count and a table with name, owner, status, percentComplete, and endDate.',
+          'Use projectsSummary for the total KPI with valueKey "count", plus a projects table with name, owner, status, percentComplete, and endDate.',
       },
       {
         prompt: 'Show me projects ending in Q2 2026',
@@ -106,7 +106,10 @@ function getStarterSemanticContext() {
     ],
     clarificationHints: [
       {
-        hint: 'Use KPI valueKey "_count" when the user wants the total number of rows returned by a query.',
+        hint: 'This app has 10 starter reports (Showcase Complex, Tabbed Portfolio, Sectioned Delivery, Multi-Source Filters, Preset Quick Views, Custom Layout, Charts Focus, Table Analytics, KPI & Trend, Portfolio Quarterly Overview) and dataset queries for paged lists, KPI summaries, and full visual datasets. In every report spec, set dataSources.*.delivery.mode to "paginatedList" for tables, "fullVisual" for charts, and "summary" for KPI/aggregate sources.',
+      },
+      {
+        hint: 'Prefer summary queries for totals and aggregate KPIs. If a summary query exposes a business count field such as count, use that field instead of _count.',
       },
       {
         hint: 'For project reports, the canonical fields are name, owner, status, percentComplete, timelineStatus, budgetStatus, budgetVariance, startDate, endDate, and executiveSummary.',
@@ -122,6 +125,9 @@ function getStarterSemanticContext() {
       },
       {
         hint: 'In report filters, paramKey must exactly match one of the query Params (e.g. status, owner). Use status not projectStatus for project status; the API only accepts the catalog param names.',
+      },
+      {
+        hint: 'Use _count only when you intentionally want the number of rows present in the resolved data source output, not a business total.',
       },
     ],
   };

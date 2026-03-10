@@ -62,6 +62,8 @@ describe('resolved query metadata', () => {
           endTo: '2026-05-31',
           status: 'AT_RISK',
         },
+        rowCount: 1,
+        deliveryMode: 'fullVisual',
       },
     ]);
   });

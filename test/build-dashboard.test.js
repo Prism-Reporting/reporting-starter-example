@@ -1,51 +1,28 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  buildDynamicSystemMessage,
+  buildModelMessages,
   buildSystemPrompt,
   getValidationContext,
-  selectRelevantReportingContext,
 } from '../src/agent/build-dashboard.js';
-import { createStarterReportingContextProvider } from '../src/reporting-context.js';
 import { portfolioQuarterlyOverviewSpec } from '../src/report-spec.js';
 
 describe('starter agent grounding', () => {
   it('builds validation context from provider-backed base metadata', async () => {
     const context = await getValidationContext();
 
-    assert.deepEqual(context.availableQueries, ['projects', 'milestones']);
+    assert.ok(context.availableQueries.includes('projects'));
+    assert.ok(context.availableQueries.includes('projectsSummary'));
+    assert.ok(context.availableQueries.includes('projectsVisual'));
+    assert.ok(context.availableQueries.includes('milestonesProgressSummary'));
     assert.ok(context.availableFields.projects.includes('name'));
+    assert.ok(context.availableFields.projectsSummary.includes('count'));
     assert.ok(context.availableFields.projects.includes('budgetVariance'));
     assert.equal(context.availableFields.projects.includes('_count'), false);
   });
 
-  it('selects relevant aliases for a simple project report request', async () => {
-    const provider = createStarterReportingContextProvider();
-    const baseContext = await provider.getBaseContext();
-    const semanticContext = await provider.getSemanticContext();
-
-    const selection = selectRelevantReportingContext({
-      prompt:
-        'Create a simple project report with total projects, project name, owner, status, % complete, and end date.',
-      baseContext,
-      semanticContext,
-      currentSpec: portfolioQuarterlyOverviewSpec,
-    });
-
-    assert.ok(selection.selectedQueries.some((query) => query.name === 'projects'));
-    assert.ok(
-      selection.semanticContext.fieldAliases.some(
-        (alias) => alias.queryName === 'projects' && alias.fieldKey === 'name'
-      )
-    );
-    assert.ok(
-      selection.semanticContext.fieldAliases.some(
-        (alias) =>
-          alias.queryName === 'projects' && alias.fieldKey === 'percentComplete'
-      )
-    );
-  });
-
-  it('includes compact grounding and current report details in the system prompt', async () => {
+  it('keeps the static system prompt focused on the DSL guide and dataset context', async () => {
     const systemPrompt = await buildSystemPrompt({
       prompt:
         'Simplify this to one KPI and one project table with owner, status, % complete, and end date.',
@@ -53,10 +30,55 @@ describe('starter agent grounding', () => {
       messages: [{ role: 'user', content: 'Keep only project-level data.' }],
     });
 
+    assert.match(systemPrompt, /Report DSL guide:/);
+    assert.match(systemPrompt, /Authoring rules/);
     assert.match(systemPrompt, /Dataset query cards:/);
+    assert.match(systemPrompt, /- tasks:/);
     assert.match(systemPrompt, /Field aliases:/);
-    assert.match(systemPrompt, /KPI rule: use "_count" only as a KPI valueKey/);
-    assert.match(systemPrompt, /Title: Portfolio Quarterly Overview/);
-    assert.match(systemPrompt, /project name/);
+    assert.match(systemPrompt, /Prefer summary queries for totals and aggregate KPIs/);
+    assert.doesNotMatch(systemPrompt, /validate_report_spec/);
+    assert.match(systemPrompt, /call `apply_report_dls` with the complete report spec/i);
+    assert.doesNotMatch(systemPrompt, /Keep only project-level data\./);
+    assert.doesNotMatch(systemPrompt, /Simplify this to one KPI/);
+    assert.doesNotMatch(systemPrompt, /Title: Portfolio Quarterly Overview/);
+  });
+
+  it('builds a dynamic system message for the active report', () => {
+    const dynamicSystemMessage = buildDynamicSystemMessage({
+      currentSpec: portfolioQuarterlyOverviewSpec,
+    });
+
+    assert.match(dynamicSystemMessage, /currently viewing the report described below/i);
+    assert.match(dynamicSystemMessage, /Title: Portfolio Quarterly Overview/);
+    assert.match(dynamicSystemMessage, /projectsSummary/);
+    assert.match(dynamicSystemMessage, /Value: count/);
+  });
+
+  it('orders model messages as history, dynamic system context, then the newest user prompt', () => {
+    const modelMessages = buildModelMessages({
+      prompt:
+        'Simplify this to one KPI and one project table with owner, status, % complete, and end date.',
+      currentSpec: portfolioQuarterlyOverviewSpec,
+      messages: [
+        { role: 'user', content: 'Keep only project-level data.' },
+        { role: 'assistant', content: 'I can do that.' },
+        {
+          role: 'user',
+          content:
+            'Simplify this to one KPI and one project table with owner, status, % complete, and end date.',
+        },
+      ],
+    });
+
+    assert.deepEqual(
+      modelMessages.map((message) => message.role),
+      ['user', 'assistant', 'system', 'user']
+    );
+    assert.equal(modelMessages.at(-1)?.content, modelMessages.at(-1)?.content?.trim());
+    assert.equal(
+      modelMessages.at(-1)?.content,
+      'Simplify this to one KPI and one project table with owner, status, % complete, and end date.'
+    );
+    assert.match(modelMessages.at(-2)?.content ?? '', /Portfolio Quarterly Overview/);
   });
 });

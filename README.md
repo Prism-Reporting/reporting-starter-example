@@ -4,7 +4,7 @@
 
 The app uses a **portfolio** (projects and milestones) as the **example dataset**. You can replace it by editing the query catalog, the data provider, and optionally the reporting context—see [Connecting your own dataset](#connecting-your-own-dataset).
 
-Built on [@reporting/core](https://github.com/Prism-Reporting/reporting) and [@reporting/react-ui](https://github.com/Prism-Reporting/reporting). It demonstrates prompt-to-spec flow with a local reporting context provider and the built-in MCP server.
+Built on [@reporting/core](https://github.com/Prism-Reporting/reporting) and [@reporting/react-ui](https://github.com/Prism-Reporting/reporting). It demonstrates prompt-to-spec flow with a local reporting context provider, a local query catalog, and server-side validation plus dry-run execution.
 
 ## Why this example exists
 
@@ -24,13 +24,13 @@ The app responds with a `ReportSpec` grounded in the published query catalog, th
 
 ## Connecting your own dataset
 
-This starter uses **no premium features**: the agent uses the built-in MCP server and the local reporting context provider. To connect your data:
+This starter uses **no premium features**: the agent uses the local reporting context provider, the local query catalog, and the local data provider. To connect your data:
 
-1. **Define queries in the query catalog** — Edit `src/query-catalog.js`. Export a single function (e.g. `getQueryCatalog()`) that returns `{ queries: QueryEntry[] }`. Each entry has `name`, `description`, `fields`, `params`, and optional `notes`. The catalog is the single source of truth for what the agent and MCP know about available queries.
+1. **Define queries in the query catalog** — Edit `src/query-catalog.js`. Export a single function (e.g. `getQueryCatalog()`) that returns `{ queries: QueryEntry[] }`. Each entry has `name`, `description`, `fields`, `params`, and optional `notes`. The catalog is the single source of truth for what the agent knows about available queries.
 
 2. **Implement the data layer** — Implement or adjust the logic so `runQuery(name, params)` returns rows for those names. The server’s `POST /api/runQuery` uses this layer. Query names must match the catalog. The main place to implement this is `src/data-provider.js`; see the comment block at the top for the contract.
 
-3. **Optional: starter context and grounding** — If your dataset needs lightweight grounding (aliases, examples, clarification hints), add or edit `src/reporting-context.js`. The starter reporting context provider supplies base context (from the query catalog) and optional semantic context to both the agent and MCP.
+3. **Optional: starter context and grounding** — If your dataset needs lightweight grounding (aliases, examples, clarification hints), add or edit `src/reporting-context.js`. The starter reporting context provider supplies base context (from the query catalog) and optional semantic context to the agent.
 
 4. **Run the app** — Restart (or run) the app. The agent and UI use the same context, catalog, and data. No extra services are required for the default setup.
 
@@ -40,16 +40,11 @@ To connect your own dataset, implement or replace the logic in `src/data-provide
 
 ## Queries
 
-The mocked data provider publishes two queries:
-
-- `projects` for initiative-level reporting
-- `milestones` for delivery checkpoint reporting
-
-Both queries support lightweight filtering and pagination through `POST /api/runQuery`.
+The mocked data provider publishes project, milestone, task, and risk queries, including summary and visual variants where needed. All query execution goes through `POST /api/runQuery`.
 
 ## Prompt-driven report generation
 
-`POST /api/chat` uses a server-side OpenAI agent and the reporting MCP server to generate or update reports from natural language. The agent reads the reporting DSL guide and schema, the local query catalog, drafts a `ReportSpec`, and validates via MCP. To enable it, copy `.env.example` to `.env` and set `OPENAI_API_KEY`. The app still works without it for the curated starter dashboards.
+`POST /api/chat` uses a server-side OpenAI agent to generate or update reports from natural language. The agent receives the full reporting DSL guide plus the full local query catalog in its system prompt, then drafts a `ReportSpec`. Before the UI accepts a spec, the server validates it and dry-runs it against the local data provider. To enable it, copy `.env.example` to `.env` and set `OPENAI_API_KEY`. The app still works without it for the curated starter dashboards.
 
 ## Prerequisites
 
@@ -65,7 +60,6 @@ Copy `.env.example` to `.env` and set at least:
 Optional:
 
 - **`OPENAI_MODEL`** — Model for the report-generation agent (default: `gpt-4o-mini`).
-- **`REPORTING_MCP_URL`** — Override when using a remote reporting MCP server. Omit for the default in-process MCP.
 
 ## Install
 
@@ -81,7 +75,7 @@ This installs dependencies and links the reporting packages (e.g. `@reporting/mc
 npm run build
 ```
 
-This builds the sibling `reporting` packages (including the MCP server) and the local Vite client bundle. Run this at least once so the linked `@reporting/mcp-server` has a built `dist/`.
+This builds the sibling `reporting` packages and the local Vite client bundle. Run this at least once so the linked `@reporting/*` packages have a built `dist/`.
 
 ## Run
 
@@ -89,7 +83,7 @@ This builds the sibling `reporting` packages (including the MCP server) and the 
 npm start
 ```
 
-Then open [http://localhost:3000](http://localhost:3000). The reporting MCP server runs **in-process**; no separate MCP process is required. The agent and UI use the same local reporting context provider and query catalog.
+Then open [http://localhost:3000](http://localhost:3000). The agent and UI use the same local reporting context provider, query catalog, and data provider.
 
 ## Development
 

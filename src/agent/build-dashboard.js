@@ -1,14 +1,21 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText, streamText, stepCountIs, tool, jsonSchema } from 'ai';
-import { formatReportSpecForPrompt, validateReportSpec } from '@reporting/core';
+import { streamText, stepCountIs, tool, jsonSchema } from 'ai';
+import {
+  formatReportSpecForPrompt,
+  resolveReport,
+  validateReportSpec,
+} from '@reporting/core';
+import { getReportGenerationRules } from '@reporting/mcp-server/contract';
+import { createPortfolioDataProvider } from '../data-provider.js';
 import { createStarterReportingContextProvider } from '../reporting-context.js';
+import { getQueryCatalog } from '../query-catalog.js';
+import { starterReports } from '../report-spec.js';
 
 const reportingContextProvider = createStarterReportingContextProvider();
+const STARTER_REPORT_LABELS = starterReports.map((r) => r.label).join(', ');
+const AVAILABLE_QUERY_NAMES = getQueryCatalog().queries.map((query) => query.name);
+const AVAILABLE_QUERIES = AVAILABLE_QUERY_NAMES.join(', ');
 const SYNTHETIC_COUNT_VALUE_KEY = '_count';
-const MAX_RELEVANT_QUERIES = 4;
-const MAX_RELEVANT_EXAMPLES = 3;
-const MAX_RELEVANT_HINTS = 4;
-const MAX_RELEVANT_ALIASES = 8;
 
 function getMessageText(message) {
   if (typeof message?.content === 'string') return message.content;
@@ -19,15 +26,6 @@ function getMessageText(message) {
       .join('\n');
   }
   return '';
-}
-
-function normalizeText(value) {
-  return String(value ?? '').toLowerCase();
-}
-
-function tokenizeText(value) {
-  const matches = normalizeText(value).match(/[a-z0-9_]+/g) ?? [];
-  return Array.from(new Set(matches.filter((token) => token.length >= 3)));
 }
 
 function buildValidationContextFromBaseContext(baseContext) {
@@ -46,170 +44,22 @@ export async function getValidationContext() {
   return buildValidationContextFromBaseContext(baseContext);
 }
 
-function scoreText(text, normalizedCorpus, corpusTokens) {
-  const normalized = normalizeText(text).trim();
-  if (!normalized) return 0;
-
-  let score = 0;
-  if (normalizedCorpus.includes(normalized)) {
-    score += Math.max(4, normalized.split(/\s+/).length * 2);
-  }
-
-  const itemTokens = tokenizeText(normalized);
-  for (const token of itemTokens) {
-    if (corpusTokens.has(token)) score += 1;
-  }
-  return score;
-}
-
-function buildContextCorpus({ prompt, messages, currentSpec, validationErrorText }) {
-  const parts = [prompt, validationErrorText];
-  for (const message of messages ?? []) {
-    parts.push(getMessageText(message));
-  }
-  if (currentSpec != null && typeof currentSpec === 'object' && !Array.isArray(currentSpec)) {
-    parts.push(formatReportSpecForPrompt(currentSpec));
-  }
-  return parts.filter(Boolean).join('\n').trim();
-}
-
-export function selectRelevantReportingContext({
-  prompt,
-  messages = [],
-  currentSpec = null,
-  baseContext,
-  semanticContext,
-  validationErrorText = '',
-}) {
-  const normalizedCorpus = buildContextCorpus({
-    prompt,
-    messages,
-    currentSpec,
-    validationErrorText,
-  }).toLowerCase();
-  const corpusTokens = new Set(tokenizeText(normalizedCorpus));
-  const queryAliases = Array.isArray(semanticContext?.queryAliases)
-    ? semanticContext.queryAliases
-    : [];
-  const fieldAliases = Array.isArray(semanticContext?.fieldAliases)
-    ? semanticContext.fieldAliases
-    : [];
-  const examples = Array.isArray(semanticContext?.examples) ? semanticContext.examples : [];
-  const clarificationHints = Array.isArray(semanticContext?.clarificationHints)
-    ? semanticContext.clarificationHints
-    : [];
-
-  const rankedQueries = (baseContext?.queries ?? [])
-    .map((query) => {
-      const aliases = queryAliases.filter((alias) => alias.queryName === query.name);
-      const score =
-        scoreText(query.name, normalizedCorpus, corpusTokens) * 5 +
-        scoreText(query.description, normalizedCorpus, corpusTokens) * 2 +
-        scoreText(query.notes, normalizedCorpus, corpusTokens) +
-        (query.fields ?? []).reduce(
-          (total, field) => total + scoreText(field, normalizedCorpus, corpusTokens),
-          0
-        ) +
-        (query.params ?? []).reduce(
-          (total, param) => total + scoreText(param, normalizedCorpus, corpusTokens),
-          0
-        ) +
-        aliases.reduce(
-          (total, alias) => total + scoreText(alias.alias, normalizedCorpus, corpusTokens) * 4,
-          0
-        );
-      return { query, score };
-    })
-    .sort((a, b) => b.score - a.score || a.query.name.localeCompare(b.query.name));
-
-  const selectedQueries =
-    rankedQueries.length <= MAX_RELEVANT_QUERIES
-      ? rankedQueries.map((entry) => entry.query)
-      : rankedQueries
-          .filter((entry) => entry.score > 0)
-          .slice(0, MAX_RELEVANT_QUERIES)
-          .map((entry) => entry.query);
-  const fallbackQueries =
-    selectedQueries.length > 0
-      ? selectedQueries
-      : rankedQueries.slice(0, MAX_RELEVANT_QUERIES).map((entry) => entry.query);
-  const relevantQueryNames = new Set(fallbackQueries.map((query) => query.name));
-  const includeAllRelevantAliases = (baseContext?.queries ?? []).length <= MAX_RELEVANT_QUERIES;
-
-  const rankedQueryAliases = queryAliases
-    .filter((alias) => relevantQueryNames.has(alias.queryName))
-    .sort(
-      (a, b) =>
-        scoreText(b.alias, normalizedCorpus, corpusTokens) -
-          scoreText(a.alias, normalizedCorpus, corpusTokens) ||
-        a.alias.localeCompare(b.alias)
-    );
-  const selectedQueryAliases =
-    includeAllRelevantAliases || rankedQueryAliases.length <= MAX_RELEVANT_ALIASES * 2
-      ? rankedQueryAliases
-      : rankedQueryAliases.slice(0, MAX_RELEVANT_ALIASES);
-
-  const rankedFieldAliases = fieldAliases
-    .filter((alias) => !alias.queryName || relevantQueryNames.has(alias.queryName))
-    .sort((a, b) => {
-      const aScore =
-        scoreText(a.alias, normalizedCorpus, corpusTokens) * 3 +
-        scoreText(a.fieldKey, normalizedCorpus, corpusTokens);
-      const bScore =
-        scoreText(b.alias, normalizedCorpus, corpusTokens) * 3 +
-        scoreText(b.fieldKey, normalizedCorpus, corpusTokens);
-      return bScore - aScore || a.alias.localeCompare(b.alias);
-    });
-  const selectedFieldAliases =
-    includeAllRelevantAliases || rankedFieldAliases.length <= MAX_RELEVANT_ALIASES * 2
-      ? rankedFieldAliases
-      : rankedFieldAliases.slice(0, MAX_RELEVANT_ALIASES);
-
-  const selectedExamples = examples
-    .map((example) => ({
-      example,
-      score:
-        scoreText(example.prompt, normalizedCorpus, corpusTokens) * 4 +
-        scoreText(example.title, normalizedCorpus, corpusTokens) * 2 +
-        scoreText(example.description, normalizedCorpus, corpusTokens),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, MAX_RELEVANT_EXAMPLES)
-    .map((entry) => entry.example);
-
-  const selectedHints = clarificationHints
-    .map((hint) => ({
-      hint,
-      score: scoreText(hint.hint, normalizedCorpus, corpusTokens),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, MAX_RELEVANT_HINTS)
-    .map((entry) => entry.hint);
-
-  return {
-    selectedQueries: fallbackQueries,
-    semanticContext: {
-      queryAliases: selectedQueryAliases,
-      fieldAliases: selectedFieldAliases,
-      examples: selectedExamples,
-      clarificationHints: selectedHints,
-    },
-  };
-}
-
-function formatSelectedContextForPrompt({ selectedQueries, semanticContext }) {
+function formatReportingContextForPrompt(baseContext, semanticContext) {
   const lines = [];
+  const queries = Array.isArray(baseContext?.queries) ? baseContext.queries : [];
 
-  if (Array.isArray(selectedQueries) && selectedQueries.length > 0) {
+  if (queries.length > 0) {
     lines.push('Dataset query cards:');
-    for (const query of selectedQueries) {
+    for (const query of queries) {
       lines.push(`- ${query.name}: ${query.description ?? 'No description available.'}`);
       if (Array.isArray(query.fields) && query.fields.length > 0) {
         lines.push(`  Fields: ${query.fields.join(', ')}`);
       }
       if (Array.isArray(query.params) && query.params.length > 0) {
         lines.push(`  Params: ${query.params.join(', ')}`);
-        lines.push(`  (Filter paramKey must be one of these Params, e.g. paramKey: "status" for status filter, not "projectStatus".)`);
+        lines.push(
+          '  (Filter paramKey must be one of these Params, e.g. paramKey: "status" for status filter, not "projectStatus".)'
+        );
       }
       if (query.notes) {
         lines.push(`  Notes: ${query.notes}`);
@@ -253,7 +103,9 @@ function formatSelectedContextForPrompt({ selectedQueries, semanticContext }) {
 
   lines.push(
     '',
-    `KPI rule: use "${SYNTHETIC_COUNT_VALUE_KEY}" only as a KPI valueKey when the user wants the total number of rows returned by a query.`
+    'KPI rules:',
+    '- Prefer summary queries for totals and aggregate KPIs. When a summary query exposes a business count field such as "count", use that field.',
+    `- Use "${SYNTHETIC_COUNT_VALUE_KEY}" only when you intentionally want the number of rows present in the resolved data source output, not a business total.`
   );
 
   return lines.join('\n').trim();
@@ -271,17 +123,26 @@ function formatValidationError(errors, diagnostics) {
   return [errBlock, diagBlock].filter(Boolean).join('\n') || 'Validation failed.';
 }
 
-/** Vercel AI–compliant tool: replace the current report in the UI with the given report DSL. */
+function buildDryRunErrors(resolvedReport) {
+  return (resolvedReport?.queries ?? [])
+    .filter((query) => query.limitExceeded)
+    .map((query) => {
+      const message =
+        query.limitExceeded?.message ?? 'Query exceeded the supported row limit.';
+      return `Widget "${query.widgetId ?? 'unknown'}" dry-run failed for dataSource "${query.dataSource}" (${query.query}): ${message}`;
+    });
+}
+
+/** Vercel AI-compliant tool: replace the current report in the UI with the given report DSL. */
 const apply_report_dls = tool({
   description:
-    'Replace the current report in the UI with a new report spec. You MUST call this with a single argument: an object with a "dls" key whose value is the full report spec (object with title, dataSources, filters, widgets). Never call with empty {}. Always pass the complete report DSL so the UI can render it. The spec is validated before applying; if invalid you will receive { applied: false, error: "..." } and MUST fix the spec and call again until you get { applied: true }.',
+    'Replace the current report in the UI with a new report spec. Call this with a single argument: an object with a "dls" key whose value is the full report spec. Never call with empty {}. Always pass the complete report DSL. The spec is validated and dry-run against the real data provider before applying; if invalid you will receive { applied: false, error: "..." } and MUST fix the spec and call again until you get { applied: true }.',
   inputSchema: jsonSchema({
     type: 'object',
     properties: {
       dls: {
         type: 'object',
-        description:
-          'Full report spec object. Must include at least title, dataSources (array), filters (array), widgets (array). Same shape as the current report.',
+        description: 'Full report spec (same shape as current report).',
       },
     },
     required: ['dls'],
@@ -296,6 +157,7 @@ const apply_report_dls = tool({
         ),
       };
     }
+
     const context = await getValidationContext();
     const validation = validateReportSpec(dls, context);
     if (!validation.valid) {
@@ -307,6 +169,26 @@ const apply_report_dls = tool({
         ),
       };
     }
+
+    try {
+      const resolved = await resolveReport(dls, createPortfolioDataProvider());
+      const dryRunErrors = buildDryRunErrors(resolved);
+      if (dryRunErrors.length > 0) {
+        return {
+          applied: false,
+          error: formatValidationError(dryRunErrors, []),
+        };
+      }
+    } catch (error) {
+      return {
+        applied: false,
+        error: formatValidationError(
+          [error instanceof Error ? error.message : String(error)],
+          []
+        ),
+      };
+    }
+
     return { applied: true };
   },
 });
@@ -314,13 +196,15 @@ const apply_report_dls = tool({
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const SYSTEM_BASE =
   'You are a helpful assistant. The user is chatting in an app that shows a live report.';
+const SYSTEM_DATASET_INTRO =
+  `This app has 10 starter reports: ${STARTER_REPORT_LABELS}. Available dataset queries (${AVAILABLE_QUERY_NAMES.length}): ${AVAILABLE_QUERIES}. Use only these query names in dataSources and filters. Every dataSource must declare delivery.mode: use "paginatedList" for tables, "fullVisual" for charts, and "summary" for KPI/aggregate sources.`;
 
 export async function buildSystemPrompt({
-  prompt,
-  messages = [],
-  currentSpec = null,
-  validationErrorText = '',
-}) {
+  prompt: _prompt,
+  messages: _messages = [],
+  currentSpec: _currentSpec = null,
+  validationErrorText: _validationErrorText = '',
+} = {}) {
   const [baseContext, semanticContext] = await Promise.all([
     reportingContextProvider.getBaseContext(),
     typeof reportingContextProvider.getSemanticContext === 'function'
@@ -328,32 +212,30 @@ export async function buildSystemPrompt({
       : Promise.resolve(null),
   ]);
 
-  const hasSpec =
-    currentSpec != null &&
-    typeof currentSpec === 'object' &&
-    !Array.isArray(currentSpec);
-  const reportSpecBlock = hasSpec ? formatReportSpecForPrompt(currentSpec) : '';
-  const selectedContext = selectRelevantReportingContext({
-    prompt,
-    messages,
-    currentSpec,
-    baseContext,
-    semanticContext,
-    validationErrorText,
+  const guideBlock = getReportGenerationRules({
+    queries: baseContext?.queries ?? [],
+    submissionToolName: 'apply_report_dls',
+    submissionToolDescription:
+      'That tool validates and dry-runs the spec before the live report is updated.',
+    inlineGuide: true,
   });
-  const contextBlock = formatSelectedContextForPrompt(selectedContext);
+  const contextBlock = formatReportingContextForPrompt(baseContext, semanticContext);
 
   return `${SYSTEM_BASE}
 
-Use only canonical query names, params, and field keys from the dataset context below. Prefer those canonical keys even when the user speaks in aliases or business language.
+${SYSTEM_DATASET_INTRO}
 
-When the user asks to change, simplify, or redesign the report, you MUST call the apply_report_dls tool with a complete report spec: pass an object with a "dls" key containing the full report object (title, dataSources, filters, widgets). Never call apply_report_dls with an empty object or without the dls payload.
+The full Report DSL authoring guide and the full dataset context are included below. Use only canonical query names, params, and field keys from that context, even when the user speaks in aliases or business language.
 
-If validation fails, repair the spec using the canonical query metadata and retry. Do not ask the user for field names if the dataset context below already covers the request.
+When the user asks to create, change, simplify, or redesign a report, call apply_report_dls with a complete report spec: pass an object with a "dls" key containing the full report object. Never call apply_report_dls with an empty object or without the dls payload.
 
-${hasSpec ? 'The user is currently viewing the report described below. Use this when they ask about the current report or want to modify it.\n' : ''}${
-    contextBlock ? `\n${contextBlock}\n` : ''
-  }${reportSpecBlock ? `\n${reportSpecBlock}` : ''}`.trim();
+If apply_report_dls returns an error, repair the spec using the DSL guide and canonical dataset metadata, then retry. Do not ask the user for field names if the dataset context below already covers the request.
+
+Report DSL guide:
+
+${guideBlock}
+
+${contextBlock ? `\n${contextBlock}\n` : ''}`.trim();
 }
 
 function toModelMessages(messages) {
@@ -364,6 +246,64 @@ function toModelMessages(messages) {
       typeof m.content === 'string' ? m.content : getMessageText(m);
     return { role, content: String(content ?? '') };
   });
+}
+
+export function buildDynamicSystemMessage({
+  currentSpec = null,
+  validationErrorText = '',
+} = {}) {
+  const hasSpec =
+    currentSpec != null &&
+    typeof currentSpec === 'object' &&
+    !Array.isArray(currentSpec);
+  const reportSpecBlock = hasSpec ? formatReportSpecForPrompt(currentSpec) : '';
+  const blocks = [];
+
+  if (validationErrorText) {
+    blocks.push(
+      `Validation feedback from the latest apply_report_dls attempt:\n${validationErrorText}`
+    );
+  }
+
+  if (reportSpecBlock) {
+    blocks.push(
+      'The user is currently viewing the report described below. Use this when they ask about the current report or want to modify it.',
+      reportSpecBlock
+    );
+  }
+
+  return blocks.join('\n\n').trim();
+}
+
+export function buildModelMessages({
+  prompt,
+  messages = [],
+  currentSpec = null,
+  validationErrorText = '',
+}) {
+  const text = prompt?.trim();
+  const history = toModelMessages(Array.isArray(messages) ? messages : []);
+  const hasTrailingPrompt =
+    text &&
+    history.length > 0 &&
+    history[history.length - 1]?.role === 'user' &&
+    history[history.length - 1]?.content?.trim() === text;
+  const conversationHistory = hasTrailingPrompt ? history.slice(0, -1) : history;
+  const dynamicSystemMessage = buildDynamicSystemMessage({
+    currentSpec,
+    validationErrorText,
+  });
+  const modelMessages = [...conversationHistory];
+
+  if (dynamicSystemMessage) {
+    modelMessages.push({ role: 'system', content: dynamicSystemMessage });
+  }
+
+  if (text) {
+    modelMessages.push({ role: 'user', content: text });
+  }
+
+  return modelMessages;
 }
 
 /**
@@ -386,8 +326,12 @@ export async function chatStream({ prompt, messages = [], currentSpec = null }, 
       overrides.model ?? process.env.OPENAI_MODEL ?? DEFAULT_MODEL
     );
 
-  const modelMessages = toModelMessages(Array.isArray(messages) ? messages : []);
-  const system = await buildSystemPrompt({ prompt: text, messages, currentSpec });
+  const system = await buildSystemPrompt();
+  const modelMessages = buildModelMessages({
+    prompt: text,
+    messages,
+    currentSpec,
+  });
 
   const result = streamText({
     model,
@@ -400,38 +344,4 @@ export async function chatStream({ prompt, messages = [], currentSpec = null }, 
   });
 
   return result.toUIMessageStreamResponse();
-}
-
-/**
- * Simple chat: no tools, no streaming. Returns assistant text only. Used by tests.
- * @param {{ prompt: string, messages?: Array, currentSpec?: object }} options
- * @param {{ agentModel?: object, model?: string }} overrides
- * @returns {Promise<{ assistantMessage: string }>}
- */
-export async function chat({ prompt, messages = [], currentSpec = null }, overrides = {}) {
-  const text = prompt?.trim();
-  if (!text) throw new Error('prompt is required');
-  if (!overrides.agentModel && !process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY is not configured');
-  }
-
-  const model =
-    overrides.agentModel ??
-    createOpenAI({ apiKey: process.env.OPENAI_API_KEY })(
-      overrides.model ?? process.env.OPENAI_MODEL ?? DEFAULT_MODEL
-    );
-
-  let modelMessages = toModelMessages(messages);
-  if (!modelMessages.length) modelMessages = [{ role: 'user', content: text }];
-  const system = await buildSystemPrompt({ prompt: text, messages, currentSpec });
-
-  const result = await generateText({
-    model,
-    system,
-    messages: modelMessages,
-  });
-
-  return {
-    assistantMessage: (result.text && result.text.trim()) || '',
-  };
 }

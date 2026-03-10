@@ -21,6 +21,7 @@
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/react": "^1.0.0",
     "@reporting/core": "file:../reporting/packages/core",
+    "@reporting/mcp-server": "file:../reporting/packages/mcp-server",
     "@reporting/react-ui": "file:../reporting/packages/react-ui",
     "ai": "^5.0.0",
     "dotenv": "^16.3.1",

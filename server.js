@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { createPortfolioDataProvider } from './src/data-provider.js';
 import { getQueryCatalog } from './src/query-catalog.js';
-import { chat, chatStream } from './src/agent/build-dashboard.js';
+import { chatStream } from './src/agent/build-dashboard.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = process.env.PORT || 3000;
 
@@ -227,11 +227,10 @@ export function getLastUserPrompt(messages) {
 }
 
 /**
- * Create the Express app. Optional getChat/getChatStream are used by tests to inject mocks.
- * @param {{ getChat?: () => typeof chat, getChatStream?: () => typeof chatStream }} options
+ * Create the Express app. Optional getChatStream is used by tests to inject mocks.
+ * @param {{ getChatStream?: () => typeof chatStream }} options
  */
 export function createApp(options = {}) {
-  const getChat = options.getChat ?? (() => chat);
   const getChatStream = options.getChatStream ?? (() => chatStream);
   const app = express();
 
@@ -242,7 +241,7 @@ export function createApp(options = {}) {
 
   app.post('/api/runQuery', async (req, res) => {
     try {
-      const { name, params = {} } = req.body;
+      const { name, params = {}, execution } = req.body ?? {};
       if (!name || typeof name !== 'string') {
         return res.status(400).json({ error: "Missing or invalid 'name'" });
       }
@@ -255,11 +254,7 @@ export function createApp(options = {}) {
         });
       }
 
-      const allowedParams = new Set([
-        ...(Array.isArray(catalogQuery.params) ? catalogQuery.params : []),
-        'page',
-        'pageSize',
-      ]);
+      const allowedParams = new Set(Array.isArray(catalogQuery.params) ? catalogQuery.params : []);
       const paramKeys = Object.keys(params);
       const invalidKeys = paramKeys.filter((k) => !allowedParams.has(k));
       if (invalidKeys.length > 0) {
@@ -268,16 +263,40 @@ export function createApp(options = {}) {
         });
       }
 
-      const page = Math.max(1, Number(params.page) || 1);
-      const pageSize = Math.min(100, Math.max(1, Number(params.pageSize) || 20));
-      const dataProvider = createPortfolioDataProvider({ page, pageSize: pageSize + 1 });
-      const result = await dataProvider.runQuery({ name, params });
-      const rows = Array.isArray(result) ? result : [result];
+      if (execution != null && typeof execution !== 'object') {
+        return res.status(400).json({ error: "Invalid 'execution' payload." });
+      }
 
-      res.json({
-        data: rows.slice(0, pageSize),
-        hasMore: rows.length > pageSize,
+      if (
+        execution?.deliveryMode !== undefined &&
+        !['paginatedList', 'fullVisual', 'summary'].includes(execution.deliveryMode)
+      ) {
+        return res.status(400).json({
+          error: `Invalid execution.deliveryMode "${execution.deliveryMode}". Allowed: paginatedList, fullVisual, summary.`,
+        });
+      }
+
+      const requestedPage = Math.max(1, Number(execution?.page) || 1);
+      const requestedPageSize = Math.min(100, Math.max(1, Number(execution?.pageSize) || 20));
+      const dataProvider = createPortfolioDataProvider({
+        page: requestedPage,
+        pageSize: requestedPageSize,
       });
+      const result = await dataProvider.runQuery({
+        name,
+        params,
+        execution:
+          execution == null
+            ? undefined
+            : {
+                ...execution,
+                ...(execution.deliveryMode === 'paginatedList'
+                  ? { page: requestedPage, pageSize: requestedPageSize }
+                  : {}),
+              },
+      });
+
+      res.json(result);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });

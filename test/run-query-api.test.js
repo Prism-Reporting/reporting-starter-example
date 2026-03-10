@@ -57,9 +57,55 @@ describe('POST /api/runQuery', () => {
   it('returns 200 when using allowed params', async () => {
     const { status, data } = await runQuery({
       name: 'projects',
-      params: { status: 'AT_RISK', page: 1, pageSize: 5 },
+      params: { status: 'AT_RISK' },
+      execution: { deliveryMode: 'paginatedList', page: 1, pageSize: 5 },
     });
     assert.equal(status, 200);
     assert.ok(Array.isArray(data.data));
+  });
+
+  it('returns pagination with totalCount and totalPages for paginated queries', async () => {
+    const { status, data } = await runQuery({
+      name: 'projects',
+      params: {},
+      execution: { deliveryMode: 'paginatedList', page: 1, pageSize: 5 },
+    });
+    assert.equal(status, 200);
+    assert.equal(data.kind, 'rows');
+    assert.ok(Array.isArray(data.data));
+    assert.ok(data.pagination, 'response includes pagination');
+    assert.equal(typeof data.pagination.page, 'number');
+    assert.equal(typeof data.pagination.pageSize, 'number');
+    assert.equal(typeof data.pagination.totalCount, 'number');
+    assert.equal(typeof data.pagination.totalPages, 'number');
+    assert.equal(data.pagination.totalPages, Math.ceil(data.pagination.totalCount / data.pagination.pageSize) || 1);
+    assert.equal(data.pagination.hasMore, data.pagination.page < data.pagination.totalPages);
+  });
+
+  it('returns rows envelopes for summary queries without pagination metadata', async () => {
+    const { status, data } = await runQuery({
+      name: 'projectsSummary',
+      params: { status: 'AT_RISK' },
+      execution: { deliveryMode: 'summary' },
+    });
+
+    assert.equal(status, 200);
+    assert.equal(data.kind, 'rows');
+    assert.ok(Array.isArray(data.data));
+    assert.equal(typeof data.data[0]?.count, 'number');
+    assert.equal(data.pagination, undefined);
+  });
+
+  it('returns limitExceeded metadata for oversized full visuals', async () => {
+    const { status, data } = await runQuery({
+      name: 'projectsVisual',
+      params: {},
+      execution: { deliveryMode: 'fullVisual', maxRows: 10 },
+    });
+
+    assert.equal(status, 200);
+    assert.equal(data.kind, 'limitExceeded');
+    assert.equal(typeof data.totalCount, 'number');
+    assert.equal(data.limit, 10);
   });
 });

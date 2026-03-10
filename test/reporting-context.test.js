@@ -8,10 +8,10 @@ describe('starter reporting context provider', () => {
     const context = await provider.getBaseContext();
 
     assert.equal(context.source, 'reporting-starter-example');
-    assert.deepEqual(
-      context.queries.map((query) => query.name),
-      ['projects', 'milestones']
-    );
+    assert.ok(context.queries.some((query) => query.name === 'projects'));
+    assert.ok(context.queries.some((query) => query.name === 'projectsSummary'));
+    assert.ok(context.queries.some((query) => query.name === 'projectsVisual'));
+    assert.ok(context.queries.some((query) => query.name === 'tasksSummary'));
     assert.ok(context.queries.find((query) => query.name === 'projects')?.fields?.includes('name'));
   });
 
@@ -37,7 +37,7 @@ describe('starter reporting context provider', () => {
       semantic.examples.some((entry) => entry.title === 'Simple project report')
     );
     assert.ok(
-      semantic.clarificationHints.some((entry) => entry.hint.includes('"_count"'))
+      semantic.clarificationHints.some((entry) => entry.hint.includes('summary queries'))
     );
   });
 });

@@ -104,7 +104,8 @@ function formatReportingContextForPrompt(baseContext, semanticContext) {
   lines.push(
     '',
     'KPI rules:',
-    '- Prefer summary queries for totals and aggregate KPIs. When a summary query exposes a business count field such as "count", use that field.',
+    '- Prefer summary queries for totals and aggregate KPIs when they already expose the business metric you need.',
+    '- When you need to aggregate raw records in the report DSL, use a fullVisual data source plus KPI config.aggregation { op, key }.',
     `- Use "${SYNTHETIC_COUNT_VALUE_KEY}" only when you intentionally want the number of rows present in the resolved data source output, not a business total.`
   );
 
@@ -197,7 +198,7 @@ const DEFAULT_MODEL = 'gpt-4o-mini';
 const SYSTEM_BASE =
   'You are a helpful assistant. The user is chatting in an app that shows a live report.';
 const SYSTEM_DATASET_INTRO =
-  `This app has 10 starter reports: ${STARTER_REPORT_LABELS}. Available dataset queries (${AVAILABLE_QUERY_NAMES.length}): ${AVAILABLE_QUERIES}. Use only these query names in dataSources and filters. Every dataSource must declare delivery.mode: use "paginatedList" for tables, "fullVisual" for charts, and "summary" for KPI/aggregate sources.`;
+  `This app has 10 starter reports: ${STARTER_REPORT_LABELS}. Available dataset queries (${AVAILABLE_QUERY_NAMES.length}): ${AVAILABLE_QUERIES}. Use only these query names in dataSources and filters. Every dataSource must declare delivery.mode: use "paginatedList" for tables, "fullVisual" for charts and raw-row KPI aggregation, and "summary" for pre-aggregated KPI sources.`;
 
 export async function buildSystemPrompt({
   prompt: _prompt,

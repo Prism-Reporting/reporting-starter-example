@@ -35,7 +35,8 @@ describe('starter agent grounding', () => {
     assert.match(systemPrompt, /Dataset query cards:/);
     assert.match(systemPrompt, /- tasks:/);
     assert.match(systemPrompt, /Field aliases:/);
-    assert.match(systemPrompt, /Prefer summary queries for totals and aggregate KPIs/);
+    assert.match(systemPrompt, /Prefer summary queries for totals and aggregate KPIs when they already expose the business metric you need/);
+    assert.match(systemPrompt, /use a fullVisual data source plus KPI config\.aggregation/);
     assert.doesNotMatch(systemPrompt, /validate_report_spec/);
     assert.match(systemPrompt, /call `apply_report_dls` with the complete report spec/i);
     assert.doesNotMatch(systemPrompt, /Keep only project-level data\./);
@@ -50,8 +51,8 @@ describe('starter agent grounding', () => {
 
     assert.match(dynamicSystemMessage, /currently viewing the report described below/i);
     assert.match(dynamicSystemMessage, /Title: Portfolio Quarterly Overview/);
-    assert.match(dynamicSystemMessage, /projectsSummary/);
-    assert.match(dynamicSystemMessage, /Value: count/);
+    assert.match(dynamicSystemMessage, /projectsVisual/);
+    assert.match(dynamicSystemMessage, /Aggregate: sum\(budgetActual\)/);
   });
 
   it('orders model messages as history, dynamic system context, then the newest user prompt', () => {

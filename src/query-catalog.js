@@ -126,7 +126,7 @@ const queryCatalog = defineQueryCatalog([
     fieldShape: commonProjectFieldShape,
     paramShape: commonProjectParamShape,
     notes:
-      'Use this query for charts that need the full filtered project dataset without table pagination. In report specs set delivery.mode = "fullVisual".',
+      'Use this query for charts and KPI widgets that aggregate raw project rows in the report DSL. It provides the full filtered project dataset without table pagination. In report specs set delivery.mode = "fullVisual".',
   },
   {
     name: 'projectsSummary',
@@ -153,7 +153,7 @@ const queryCatalog = defineQueryCatalog([
     fieldShape: commonMilestoneFieldShape,
     paramShape: commonMilestoneParamShape,
     notes:
-      'Use this query for milestone charts that need the full filtered result set without table pagination. In report specs set delivery.mode = "fullVisual".',
+      'Use this query for milestone charts and KPI widgets that aggregate raw milestone rows in the report DSL. It provides the full filtered result set without table pagination. In report specs set delivery.mode = "fullVisual".',
   },
   {
     name: 'milestonesSummary',

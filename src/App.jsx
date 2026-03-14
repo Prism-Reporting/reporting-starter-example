@@ -28,6 +28,7 @@ function useStableChatId() {
 export default function App() {
   const dataProvider = useMemo(() => createDataProvider(), []);
   const [currentSpec, setCurrentSpec] = useState(showcaseComplexSpec);
+  const [reportViewMode, setReportViewMode] = useState('rendered');
   const [input, setInput] = useState('');
   const [streamError, setStreamError] = useState(null);
   const clearHistoryNextRef = useRef(false);
@@ -234,14 +235,52 @@ export default function App() {
 
         <section className="portfolio-report-panel">
           <div className="portfolio-report-panel-header">
-            <h2 className="portfolio-section-title">Live Report</h2>
-            <p className="portfolio-helper-text">The latest report spec is rendered here.</p>
+            <div>
+              <h2 className="portfolio-section-title">Live Report</h2>
+              <p className="portfolio-helper-text">
+                Switch between the rendered report and the raw DSL to see how the example is built.
+              </p>
+            </div>
+            <div
+              className="portfolio-view-toggle"
+              role="tablist"
+              aria-label="Report view mode"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={reportViewMode === 'rendered'}
+                className={`portfolio-view-toggle-button${
+                  reportViewMode === 'rendered' ? ' is-active' : ''
+                }`}
+                onClick={() => setReportViewMode('rendered')}
+              >
+                Rendered report
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={reportViewMode === 'dsl'}
+                className={`portfolio-view-toggle-button${
+                  reportViewMode === 'dsl' ? ' is-active' : ''
+                }`}
+                onClick={() => setReportViewMode('dsl')}
+              >
+                DSL only
+              </button>
+            </div>
           </div>
-          <ReportRenderer
-            spec={currentSpec}
-            dataProvider={dataProvider}
-            registry={defaultRegistry}
-          />
+          {reportViewMode === 'dsl' ? (
+            <div className="portfolio-dsl-panel">
+              <pre className="portfolio-dsl-code">{JSON.stringify(currentSpec, null, 2)}</pre>
+            </div>
+          ) : (
+            <ReportRenderer
+              spec={currentSpec}
+              dataProvider={dataProvider}
+              registry={defaultRegistry}
+            />
+          )}
         </section>
       </main>
     </div>

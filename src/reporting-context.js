@@ -86,7 +86,7 @@ function getStarterSemanticContext() {
         prompt: 'Create a simple project report',
         title: 'Simple project report',
         description:
-          'Use projectsSummary for the total KPI with valueKey "count", plus a projects table with name, owner, status, percentComplete, and endDate.',
+          'Use projectsSummary for the total KPI with valueKey "count", or use projectsVisual plus config.aggregation when the user wants totals such as summed budgetActual. Pair it with a projects table showing name, owner, status, percentComplete, and endDate.',
       },
       {
         prompt: 'Show me projects ending in Q2 2026',
@@ -106,10 +106,10 @@ function getStarterSemanticContext() {
     ],
     clarificationHints: [
       {
-        hint: 'This app has 10 starter reports (Showcase Complex, Tabbed Portfolio, Sectioned Delivery, Multi-Source Filters, Preset Quick Views, Custom Layout, Charts Focus, Table Analytics, KPI & Trend, Portfolio Quarterly Overview) and dataset queries for paged lists, KPI summaries, and full visual datasets. In every report spec, set dataSources.*.delivery.mode to "paginatedList" for tables, "fullVisual" for charts, and "summary" for KPI/aggregate sources.',
+        hint: 'This app has 10 starter reports (Showcase Complex, Tabbed Portfolio, Sectioned Delivery, Multi-Source Filters, Preset Quick Views, Custom Layout, Charts Focus, Table Analytics, KPI & Trend, Portfolio Quarterly Overview) and dataset queries for paged lists, KPI summaries, and full visual datasets. In every report spec, set dataSources.*.delivery.mode to "paginatedList" for tables, "fullVisual" for charts and raw-record KPI aggregation, and "summary" for pre-aggregated KPI sources.',
       },
       {
-        hint: 'Prefer summary queries for totals and aggregate KPIs. If a summary query exposes a business count field such as count, use that field instead of _count.',
+        hint: 'Prefer summary queries for totals and aggregate KPIs when they already expose the business metric. If you need to aggregate raw rows inside the report DSL, use a fullVisual data source with KPI config.aggregation. If a summary query exposes a business count field such as count, use that field instead of _count.',
       },
       {
         hint: 'For project reports, the canonical fields are name, owner, status, percentComplete, timelineStatus, budgetStatus, budgetVariance, startDate, endDate, and executiveSummary.',

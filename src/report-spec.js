@@ -1,5 +1,6 @@
 /**
  * Report specs — 10 examples showcasing layout, filters, and widgets.
+ * Includes card views alongside tables, charts, and KPIs.
  * All dataSources use queries from the query catalog: projects, milestones, tasks, risks.
  */
 
@@ -59,14 +60,14 @@ export const showcaseComplexSpec = {
       dataSource: ['projects', 'projectsVisual'],
       groupIds: ['projects-detail'],
       paramKey: 'search',
-      placeholder: 'Filter the project table and chart',
+      placeholder: 'Filter the project cards and chart',
     },
   ],
   groups: [
     {
       id: 'projects-detail',
       label: 'Project detail',
-      widgetIds: ['sc-projects-table', 'sc-projects-bar'],
+      widgetIds: ['sc-projects-cards', 'sc-projects-bar'],
     },
   ],
   presets: [
@@ -82,7 +83,7 @@ export const showcaseComplexSpec = {
     },
   ],
   tabs: [
-    { id: 'projects-tab', label: 'Projects', widgetIds: ['sc-projects-kpi', 'sc-projects-table', 'sc-projects-bar'] },
+    { id: 'projects-tab', label: 'Projects', widgetIds: ['sc-projects-kpi', 'sc-projects-cards', 'sc-projects-bar'] },
     { id: 'milestones-tab', label: 'Milestones', widgetIds: ['sc-milestones-kpi', 'sc-milestones-table', 'sc-milestones-line'] },
     { id: 'tasks-tab', label: 'Tasks', widgetIds: ['sc-tasks-kpi', 'sc-tasks-table'] },
   ],
@@ -90,25 +91,41 @@ export const showcaseComplexSpec = {
     {
       type: 'kpi',
       id: 'sc-projects-kpi',
-      title: 'Projects',
-      dataSource: 'projectsSummary',
-      config: { valueKey: 'count', label: 'Total projects', format: 'number' },
+      title: 'Budget Actual',
+      dataSource: 'projectsVisual',
+      config: {
+        valueKey: 'budgetActual',
+        aggregation: { op: 'sum', key: 'budgetActual' },
+        label: 'Filtered project spend',
+        format: 'currency',
+        currencyCode: 'USD',
+        decimalPlaces: 0,
+      },
       width: '100%',
       height: '80px',
     },
     {
-      type: 'table',
-      id: 'sc-projects-table',
-      title: 'Projects',
+      type: 'cardView',
+      id: 'sc-projects-cards',
+      title: 'Project cards',
       dataSource: 'projects',
       config: {
-        columns: [
-          { key: 'name', label: 'Project' },
-          { key: 'owner', label: 'Owner' },
-          { key: 'status', label: 'Status' },
-          { key: 'percentComplete', label: '% Complete' },
-          { key: 'endDate', label: 'End Date', type: 'date' },
+        titleKey: 'name',
+        subtitleKey: 'owner',
+        badges: [{ key: 'status' }, { key: 'timelineStatus', label: 'Timeline' }],
+        metadata: [
+          { key: 'quarter', label: 'Quarter' },
+          { key: 'endDate', label: 'End date' },
+          { key: 'executiveSummary', label: 'Summary' },
         ],
+        primaryMetric: {
+          key: 'percentComplete',
+          label: 'Complete',
+          format: 'number',
+          decimalPlaces: 0,
+          suffix: '%',
+        },
+        template: 'detailed',
       },
       width: '100%',
     },
@@ -124,9 +141,16 @@ export const showcaseComplexSpec = {
     {
       type: 'kpi',
       id: 'sc-milestones-kpi',
-      title: 'Milestones',
-      dataSource: 'milestonesSummary',
-      config: { valueKey: 'count', label: 'Total milestones', format: 'number' },
+      title: 'Milestone Progress',
+      dataSource: 'milestonesVisual',
+      config: {
+        valueKey: 'percentComplete',
+        aggregation: { op: 'avg', key: 'percentComplete' },
+        label: 'Average completion',
+        format: 'number',
+        decimalPlaces: 0,
+        suffix: '%',
+      },
     },
     {
       type: 'table',
@@ -255,20 +279,45 @@ export const tabbedPortfolioSpec = {
     },
   ],
   tabs: [
-    { id: 'p', label: 'Projects', widgetIds: ['tp-p-kpi', 'tp-p-table'] },
+    { id: 'p', label: 'Projects', widgetIds: ['tp-p-kpi', 'tp-p-cards'] },
     { id: 'm', label: 'Milestones', widgetIds: ['tp-m-kpi', 'tp-m-table'] },
     { id: 't', label: 'Tasks', widgetIds: ['tp-t-kpi', 'tp-t-table'] },
-    { id: 'r', label: 'Risks', widgetIds: ['tp-r-kpi', 'tp-r-table'] },
+    { id: 'r', label: 'Risks', widgetIds: ['tp-r-kpi', 'tp-r-cards'] },
   ],
   widgets: [
     { type: 'kpi', id: 'tp-p-kpi', title: 'Projects', dataSource: 'projectsSummary', config: { valueKey: 'count', label: 'Count', format: 'number' } },
-    { type: 'table', id: 'tp-p-table', title: 'Projects', dataSource: 'projects', config: { columns: [{ key: 'name', label: 'Project' }, { key: 'owner', label: 'Owner' }, { key: 'status', label: 'Status' }, { key: 'endDate', label: 'End', type: 'date' }] } },
+    {
+      type: 'cardView',
+      id: 'tp-p-cards',
+      title: 'Projects',
+      dataSource: 'projects',
+      config: {
+        titleKey: 'name',
+        subtitleKey: 'owner',
+        badges: [{ key: 'status' }],
+        metadata: [{ key: 'quarter', label: 'Quarter' }, { key: 'endDate', label: 'End' }],
+        primaryMetric: { key: 'percentComplete', label: 'Complete', format: 'number', decimalPlaces: 0, suffix: '%' },
+        template: 'compact',
+      },
+    },
     { type: 'kpi', id: 'tp-m-kpi', title: 'Milestones', dataSource: 'milestonesSummary', config: { valueKey: 'count', label: 'Count', format: 'number' } },
     { type: 'table', id: 'tp-m-table', title: 'Milestones', dataSource: 'milestones', config: { columns: [{ key: 'name', label: 'Milestone' }, { key: 'projectName', label: 'Project' }, { key: 'status', label: 'Status' }, { key: 'targetDate', label: 'Target', type: 'date' }] } },
     { type: 'kpi', id: 'tp-t-kpi', title: 'Tasks', dataSource: 'tasksSummary', config: { valueKey: 'count', label: 'Count', format: 'number' } },
     { type: 'table', id: 'tp-t-table', title: 'Tasks', dataSource: 'tasks', config: { columns: [{ key: 'name', label: 'Task' }, { key: 'projectName', label: 'Project' }, { key: 'status', label: 'Status' }, { key: 'dueDate', label: 'Due', type: 'date' }] } },
     { type: 'kpi', id: 'tp-r-kpi', title: 'Risks', dataSource: 'risksSummary', config: { valueKey: 'count', label: 'Count', format: 'number' } },
-    { type: 'table', id: 'tp-r-table', title: 'Risks', dataSource: 'risks', config: { columns: [{ key: 'title', label: 'Risk' }, { key: 'projectName', label: 'Project' }, { key: 'severity', label: 'Severity' }, { key: 'status', label: 'Status' }] } },
+    {
+      type: 'cardView',
+      id: 'tp-r-cards',
+      title: 'Risks',
+      dataSource: 'risks',
+      config: {
+        titleKey: 'title',
+        subtitleKey: 'projectName',
+        badges: [{ key: 'severity' }, { key: 'status' }],
+        metadata: [{ key: 'owner', label: 'Owner' }, { key: 'raisedDate', label: 'Raised' }],
+        template: 'compact',
+      },
+    },
   ],
 };
 
@@ -343,17 +392,42 @@ export const sectionedDeliverySpec = {
   ],
   sections: [
     { id: 'summary', title: 'Summary', widgetIds: ['sd-p-kpi', 'sd-m-kpi', 'sd-r-kpi'] },
-    { id: 'projects', title: 'Projects', widgetIds: ['sd-projects-table'] },
+    { id: 'projects', title: 'Projects', widgetIds: ['sd-projects-cards'] },
     { id: 'milestones', title: 'Milestones', widgetIds: ['sd-milestones-table'] },
-    { id: 'risks', title: 'Risks', widgetIds: ['sd-risks-table'] },
+    { id: 'risks', title: 'Risks', widgetIds: ['sd-risks-cards'] },
   ],
   widgets: [
     { type: 'kpi', id: 'sd-p-kpi', title: 'Projects', dataSource: 'projectsSummary', config: { valueKey: 'count', label: 'Total', format: 'number' } },
     { type: 'kpi', id: 'sd-m-kpi', title: 'Milestones', dataSource: 'milestonesSummary', config: { valueKey: 'count', label: 'Total', format: 'number' } },
     { type: 'kpi', id: 'sd-r-kpi', title: 'Risks', dataSource: 'risksSummary', config: { valueKey: 'count', label: 'Total', format: 'number' } },
-    { type: 'table', id: 'sd-projects-table', title: 'Projects', dataSource: 'projects', config: { columns: [{ key: 'name', label: 'Project' }, { key: 'owner', label: 'Owner' }, { key: 'status', label: 'Status' }, { key: 'percentComplete', label: '%' }, { key: 'endDate', label: 'End', type: 'date' }] } },
+    {
+      type: 'cardView',
+      id: 'sd-projects-cards',
+      title: 'Projects',
+      dataSource: 'projects',
+      config: {
+        titleKey: 'name',
+        subtitleKey: 'owner',
+        badges: [{ key: 'status' }, { key: 'timelineStatus', label: 'Timeline' }],
+        metadata: [{ key: 'quarter', label: 'Quarter' }, { key: 'endDate', label: 'End' }],
+        primaryMetric: { key: 'budgetActual', label: 'Actual', format: 'currency', currencyCode: 'USD', decimalPlaces: 0 },
+        template: 'detailed',
+      },
+    },
     { type: 'table', id: 'sd-milestones-table', title: 'Milestones by project', dataSource: 'milestones', config: { groupByKey: 'projectName', groupLabelKey: 'projectName', columns: [{ key: 'name', label: 'Milestone' }, { key: 'status', label: 'Status' }, { key: 'targetDate', label: 'Target', type: 'date' }] } },
-    { type: 'table', id: 'sd-risks-table', title: 'Risks', dataSource: 'risks', config: { columns: [{ key: 'title', label: 'Risk' }, { key: 'projectName', label: 'Project' }, { key: 'severity', label: 'Severity' }, { key: 'status', label: 'Status' }] } },
+    {
+      type: 'cardView',
+      id: 'sd-risks-cards',
+      title: 'Risks',
+      dataSource: 'risks',
+      config: {
+        titleKey: 'title',
+        subtitleKey: 'projectName',
+        badges: [{ key: 'severity' }, { key: 'status' }],
+        metadata: [{ key: 'owner', label: 'Owner' }, { key: 'mitigatedDate', label: 'Mitigated' }],
+        template: 'compact',
+      },
+    },
   ],
 };
 
@@ -470,13 +544,27 @@ export const customLayoutSpec = {
     { type: 'select', id: 'status', label: 'Status', dataSource: ['projects', 'projectsSummary', 'projectsVisual'], paramKey: 'status', options: [{ value: 'ON_TRACK', label: 'On Track' }, { value: 'AT_RISK', label: 'At Risk' }] },
   ],
   widgets: [
-    { type: 'kpi', id: 'cl-kpi', title: 'Projects', dataSource: 'projectsSummary', config: { valueKey: 'count', label: 'Count', format: 'number' }, width: '50%', height: '80px' },
+    {
+      type: 'kpi',
+      id: 'cl-kpi',
+      title: 'Projects',
+      dataSource: 'projectsVisual',
+      config: {
+        valueKey: 'budgetActual',
+        aggregation: { op: 'count', key: 'budgetActual' },
+        label: 'Filtered rows',
+        format: 'number',
+        suffix: ' projects',
+      },
+      width: '50%',
+      height: '80px',
+    },
     { type: 'barChart', id: 'cl-bar', title: 'Progress by project', dataSource: 'projectsVisual', config: { categoryKey: 'name', valueKey: 'percentComplete' }, width: '100%', height: '300px' },
     { type: 'table', id: 'cl-table', title: 'Milestones', dataSource: 'milestones', config: { columns: [{ key: 'name', label: 'Milestone' }, { key: 'projectName', label: 'Project' }, { key: 'targetDate', label: 'Target', type: 'date' }] }, width: '100%' },
   ],
 };
 
-// --- 7. Charts Focus: lineChart + stackedBarChart + barChart + table ---
+// --- 7. Charts Focus: lineChart + areaChart + pieChart + stackedBarChart + funnelChart + scatterChart + table ---
 export const chartsFocusSpec = {
   id: 'charts-focus',
   title: 'Charts Focus',
@@ -494,8 +582,11 @@ export const chartsFocusSpec = {
   ],
   widgets: [
     { type: 'lineChart', id: 'cf-line', title: 'Milestone progress over time', dataSource: 'milestonesVisual', config: { categoryKey: 'targetDate', valueKey: 'percentComplete' }, height: '280px' },
+    { type: 'areaChart', id: 'cf-area', title: 'Milestone progress area view', dataSource: 'milestonesVisual', config: { categoryKey: 'targetDate', valueKey: 'percentComplete' }, height: '280px' },
     { type: 'stackedBarChart', id: 'cf-stacked', title: 'Budget by project', dataSource: 'projectsVisual', config: { categoryKey: 'name', series: [{ key: 'budgetPlanned', label: 'Planned' }, { key: 'budgetActual', label: 'Actual' }] }, height: '280px' },
-    { type: 'barChart', id: 'cf-bar', title: 'Tasks / projects (sample)', dataSource: 'projectsVisual', config: { categoryKey: 'name', valueKey: 'percentComplete' }, height: '260px' },
+    { type: 'pieChart', id: 'cf-pie', title: 'Project progress share', dataSource: 'projectsVisual', config: { categoryKey: 'name', valueKey: 'percentComplete' }, height: '260px' },
+    { type: 'funnelChart', id: 'cf-funnel', title: 'Milestone completion funnel', dataSource: 'milestonesVisual', config: { categoryKey: 'name', valueKey: 'percentComplete' }, height: '260px' },
+    { type: 'scatterChart', id: 'cf-scatter', title: 'Budget planned vs actual', dataSource: 'projectsVisual', config: { xKey: 'budgetPlanned', yKey: 'budgetActual', zKey: 'percentComplete' }, height: '280px' },
     { type: 'table', id: 'cf-table', title: 'Risks', dataSource: 'risks', config: { columns: [{ key: 'title', label: 'Risk' }, { key: 'projectName', label: 'Project' }, { key: 'severity', label: 'Severity' }] } },
   ],
 };
@@ -557,7 +648,7 @@ export const tableAnalyticsSpec = {
   ],
 };
 
-// --- 9. KPI & Trend: KPI with trend + bar chart ---
+// --- 9. KPI & Trend: KPI with trend + doughnutChart + scatter chart ---
 export const kpiTrendSpec = {
   id: 'kpi-trend',
   title: 'KPI & Trend',
@@ -572,7 +663,8 @@ export const kpiTrendSpec = {
   ],
   widgets: [
     { type: 'kpi', id: 'kt-kpi', title: 'Progress (with trend)', dataSource: 'milestonesProgressSummary', config: { valueKey: 'avgPercentComplete', label: 'Average % complete', format: 'number', trend: { dataKey: 'trendPercentComplete' }, decimalPlaces: 0 } },
-    { type: 'barChart', id: 'kt-bar', title: 'Project progress', dataSource: 'projectsVisual', config: { categoryKey: 'name', valueKey: 'percentComplete' }, height: '280px' },
+    { type: 'doughnutChart', id: 'kt-doughnut', title: 'Progress by period', dataSource: 'milestonesProgressSummary', config: { categoryKey: 'period', valueKey: 'avgPercentComplete' }, height: '280px' },
+    { type: 'scatterChart', id: 'kt-scatter', title: 'Project budget correlation', dataSource: 'projectsVisual', config: { xKey: 'budgetPlanned', yKey: 'budgetActual', zKey: 'percentComplete' }, height: '280px' },
     { type: 'table', id: 'kt-table', title: 'Milestones', dataSource: 'milestones', config: { columns: [{ key: 'name', label: 'Milestone' }, { key: 'projectName', label: 'Project' }, { key: 'percentComplete', label: '%' }] } },
   ],
 };
@@ -585,19 +677,64 @@ export const portfolioQuarterlyOverviewSpec = {
   dataSources: {
     projects: { name: 'projects', query: 'projects', delivery: { mode: 'paginatedList', pageSize: 20 } },
     projectsSummary: { name: 'projectsSummary', query: 'projectsSummary', delivery: { mode: 'summary' } },
+    projectsVisual: { name: 'projectsVisual', query: 'projectsVisual', delivery: { mode: 'fullVisual', maxRows: 1000 } },
     milestones: { name: 'milestones', query: 'milestones', delivery: { mode: 'paginatedList', pageSize: 20 } },
     milestonesSummary: { name: 'milestonesSummary', query: 'milestonesSummary', delivery: { mode: 'summary' } },
+    milestonesVisual: { name: 'milestonesVisual', query: 'milestonesVisual', delivery: { mode: 'fullVisual', maxRows: 1000 } },
   },
   filters: [
-    { type: 'select', id: 'projectStatus', label: 'Project status', dataSource: ['projects', 'projectsSummary'], paramKey: 'status', options: [{ value: 'ON_TRACK', label: 'On Track' }, { value: 'AT_RISK', label: 'At Risk' }, { value: 'BLOCKED', label: 'Blocked' }, { value: 'COMPLETE', label: 'Complete' }] },
-    { type: 'select', id: 'milestoneStatus', label: 'Milestone status', dataSource: ['milestones', 'milestonesSummary'], paramKey: 'status', options: [{ value: 'NOT_STARTED', label: 'Not Started' }, { value: 'IN_PROGRESS', label: 'In Progress' }, { value: 'AT_RISK', label: 'At Risk' }, { value: 'DONE', label: 'Done' }] },
-    { type: 'search', id: 'projectSearch', label: 'Find project', dataSource: ['projects', 'projectsSummary'], paramKey: 'search', placeholder: 'Search by project, owner, or summary' },
+    { type: 'select', id: 'projectStatus', label: 'Project status', dataSource: ['projects', 'projectsSummary', 'projectsVisual'], paramKey: 'status', options: [{ value: 'ON_TRACK', label: 'On Track' }, { value: 'AT_RISK', label: 'At Risk' }, { value: 'BLOCKED', label: 'Blocked' }, { value: 'COMPLETE', label: 'Complete' }] },
+    { type: 'select', id: 'milestoneStatus', label: 'Milestone status', dataSource: ['milestones', 'milestonesSummary', 'milestonesVisual'], paramKey: 'status', options: [{ value: 'NOT_STARTED', label: 'Not Started' }, { value: 'IN_PROGRESS', label: 'In Progress' }, { value: 'AT_RISK', label: 'At Risk' }, { value: 'DONE', label: 'Done' }] },
+    { type: 'search', id: 'projectSearch', label: 'Find project', dataSource: ['projects', 'projectsSummary', 'projectsVisual'], paramKey: 'search', placeholder: 'Search by project, owner, or summary' },
     { type: 'search', id: 'milestoneProjectName', label: 'Project', dataSource: 'milestones', groupIds: ['milestones-by-project-group'], paramKey: 'projectName', placeholder: 'Filter milestone groups by project' },
   ],
   widgets: [
-    { type: 'kpi', id: 'projects-kpi', title: 'Projects', dataSource: 'projectsSummary', config: { valueKey: 'count', label: 'Total projects', format: 'number' } },
-    { type: 'table', id: 'projects-table', title: 'Executive Project View', dataSource: 'projects', config: { columns: [{ key: 'name', label: 'Project' }, { key: 'owner', label: 'Owner' }, { key: 'status', label: 'Status' }, { key: 'timelineStatus', label: 'Timeline' }, { key: 'percentComplete', label: '% Complete' }, { key: 'budgetVariance', label: 'Budget Variance' }, { key: 'endDate', label: 'End Date', type: 'date' }] } },
-    { type: 'kpi', id: 'milestones-kpi', title: 'Milestones', dataSource: 'milestonesSummary', config: { valueKey: 'count', label: 'Total milestones', format: 'number' } },
+    {
+      type: 'kpi',
+      id: 'projects-kpi',
+      title: 'Budget Actual',
+      dataSource: 'projectsVisual',
+      config: {
+        valueKey: 'budgetActual',
+        aggregation: { op: 'sum', key: 'budgetActual' },
+        label: 'Total project spend',
+        format: 'currency',
+        currencyCode: 'USD',
+        decimalPlaces: 0,
+      },
+    },
+    {
+      type: 'cardView',
+      id: 'projects-cards',
+      title: 'Executive Project View',
+      dataSource: 'projects',
+      config: {
+        titleKey: 'name',
+        subtitleKey: 'owner',
+        badges: [{ key: 'status' }, { key: 'timelineStatus', label: 'Timeline' }],
+        metadata: [
+          { key: 'quarter', label: 'Quarter' },
+          { key: 'endDate', label: 'End date' },
+          { key: 'executiveSummary', label: 'Summary' },
+        ],
+        primaryMetric: { key: 'budgetActual', label: 'Spend', format: 'currency', currencyCode: 'USD', decimalPlaces: 0 },
+        template: 'detailed',
+      },
+    },
+    {
+      type: 'kpi',
+      id: 'milestones-kpi',
+      title: 'Milestones',
+      dataSource: 'milestonesVisual',
+      config: {
+        valueKey: 'percentComplete',
+        aggregation: { op: 'avg', key: 'percentComplete' },
+        label: 'Average completion',
+        format: 'number',
+        decimalPlaces: 0,
+        suffix: '%',
+      },
+    },
     { type: 'table', id: 'milestones-by-project', title: 'Milestones by Project', dataSource: 'milestones', groupIds: ['milestones-by-project-group'], config: { groupByKey: 'projectName', groupLabelKey: 'projectName', columns: [{ key: 'name', label: 'Milestone' }, { key: 'owner', label: 'Owner' }, { key: 'status', label: 'Status' }, { key: 'targetDate', label: 'Target Date', type: 'date' }, { key: 'completedDate', label: 'Completed', type: 'date' }, { key: 'percentComplete', label: '% Complete' }] } },
   ],
 };

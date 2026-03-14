@@ -166,6 +166,14 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
+.portfolio-report-panel-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
 .portfolio-chat-history {
   padding: 16px;
   display: grid;
@@ -253,9 +261,71 @@
   overflow: hidden;
 }
 
+.portfolio-view-toggle {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+}
+
+.portfolio-view-toggle-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: transparent;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.portfolio-view-toggle-button.is-active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.portfolio-dsl-panel {
+  padding: 16px;
+  background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+}
+
+.portfolio-dsl-code {
+  margin: 0;
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e2e8f0;
+  font-family:
+    'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
 .portfolio-report-panel .report-shell {
   border: 0;
   border-radius: 0;
+}
+
+@media (max-width: 960px) {
+  .portfolio-app-main {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-chat-panel {
+    min-height: auto;
+  }
+
+  .portfolio-dsl-code {
+    max-height: 60vh;
+  }
 }
 
 .portfolio-report-panel > :last-child {

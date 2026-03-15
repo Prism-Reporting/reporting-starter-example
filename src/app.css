@@ -211,6 +211,72 @@
   color: #0f172a;
 }
 
+.portfolio-chat-tool-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.portfolio-chat-tool {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #dbe4f0;
+  background: #fff;
+}
+
+.portfolio-chat-tool-state-partial-call,
+.portfolio-chat-tool-state-call,
+.portfolio-chat-tool-state-input-streaming,
+.portfolio-chat-tool-state-input-available {
+  background: linear-gradient(180deg, #f8fbff 0%, #f1f5f9 100%);
+  border-color: #cbd5e1;
+}
+
+.portfolio-chat-tool-state-result,
+.portfolio-chat-tool-state-output-available {
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fafc 100%);
+  border-color: #bbf7d0;
+}
+
+.portfolio-chat-tool-state-output-error {
+  background: linear-gradient(180deg, #fef2f2 0%, #fff7ed 100%);
+  border-color: #fecaca;
+}
+
+.portfolio-chat-tool-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.portfolio-chat-tool-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.portfolio-chat-tool-state {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.portfolio-chat-tool-summary,
+.portfolio-chat-tool-result {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+.portfolio-chat-tool-result {
+  color: #0f172a;
+}
+
 .portfolio-chat-message-spec,
 .portfolio-chat-message-validation {
   margin-top: 10px;
@@ -305,8 +371,7 @@
   font-size: 13px;
   line-height: 1.6;
   color: #e2e8f0;
-  font-family:
-    'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-family: 'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
 .portfolio-report-panel .report-shell {

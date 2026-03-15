@@ -94,6 +94,47 @@ function createMockStreamResponse() {
   });
 }
 
+function createMockToolStreamResponse() {
+  const parts = [
+    { type: 'start', messageId: 'test-msg-tools' },
+    { type: 'tool-input-start', toolCallId: 'tool-1', toolName: 'preview_query' },
+    {
+      type: 'tool-input-available',
+      toolCallId: 'tool-1',
+      toolName: 'preview_query',
+      input: { name: 'initiatives' },
+    },
+    {
+      type: 'tool-output-available',
+      toolCallId: 'tool-1',
+      output: { ok: true, rows: [{ id: 'a' }] },
+    },
+    { type: 'tool-input-start', toolCallId: 'tool-2', toolName: 'apply_report_spec' },
+    {
+      type: 'tool-input-available',
+      toolCallId: 'tool-2',
+      toolName: 'apply_report_spec',
+      input: { spec: { id: 'demo' } },
+    },
+    { type: 'tool-output-available', toolCallId: 'tool-2', output: { applied: true } },
+    { type: 'finish' },
+  ];
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      for (const part of parts) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(part)}\n\n`));
+      }
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    },
+  });
+  return new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream', 'x-vercel-ai-ui-message-stream': 'v1' },
+  });
+}
+
 describe('POST /api/chat', () => {
   let server;
   let baseUrl;
@@ -152,6 +193,33 @@ describe('POST /api/chat', () => {
       text.includes('finish') || text.includes('[DONE]'),
       'stream should contain finish or DONE'
     );
+  });
+
+  it('preserves live tool chunks so the client can render interim actions', async () => {
+    const toolApp = createApp({
+      getChatStream: () => () => Promise.resolve(createMockToolStreamResponse()),
+    });
+    const toolServer = toolApp.listen(0);
+    const toolBaseUrl = `http://127.0.0.1:${toolServer.address().port}`;
+
+    try {
+      const res = await fetch(`${toolBaseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'Build a report' }),
+      });
+
+      assert.equal(res.status, 200);
+      const text = await res.text();
+      assert.match(text, /^f:/m);
+      assert.match(text, /^b:/m);
+      assert.match(text, /"toolName":"preview_query"/);
+      assert.match(text, /^9:/m);
+      assert.match(text, /^a:/m);
+      assert.match(text, /"toolName":"apply_report_spec"/);
+    } finally {
+      toolServer.close();
+    }
   });
 
   it('accepts body.message instead of messages and returns X-Chat-Id', async () => {

@@ -3,6 +3,13 @@ import { useChat } from '@ai-sdk/react';
 import { ReportRenderer, defaultRegistry } from '@reporting/react-ui';
 import { executiveCommandCenterSpec, starterReports } from './report-spec.js';
 
+const TOOL_LABELS = {
+  list_available_queries: 'Query catalog',
+  describe_query: 'Query metadata',
+  preview_query: 'Query preview',
+  apply_report_spec: 'Report builder',
+};
+
 function createDataProvider() {
   return {
     async runQuery(request) {
@@ -25,6 +32,142 @@ function useStableChatId() {
   return chatId;
 }
 
+function getUiToolParts(message) {
+  return (message?.parts ?? []).filter((part) => {
+    if (!part || typeof part.type !== 'string') return false;
+    return part.type.startsWith('tool-') || part.type === 'dynamic-tool';
+  });
+}
+
+function getToolActivities(message) {
+  if (Array.isArray(message?.toolInvocations) && message.toolInvocations.length > 0) {
+    return message.toolInvocations.map((invocation) => ({
+      toolCallId: invocation.toolCallId,
+      toolName: invocation.toolName ?? 'tool',
+      state: invocation.state ?? 'call',
+      input: invocation.args ?? invocation.input ?? {},
+      output: invocation.result,
+      errorText:
+        invocation.result &&
+        typeof invocation.result === 'object' &&
+        !Array.isArray(invocation.result)
+          ? (invocation.result.error ?? null)
+          : null,
+    }));
+  }
+
+  return getUiToolParts(message).map((part) => ({
+    toolCallId: part.toolCallId,
+    toolName:
+      part?.type === 'dynamic-tool' ? (part.toolName ?? 'tool') : part.type.replace(/^tool-/, ''),
+    state: part.state ?? 'input-streaming',
+    input: part.input ?? part.rawInput ?? {},
+    output: part.output,
+    errorText: part.errorText ?? null,
+  }));
+}
+
+function getToolLabel(activity) {
+  const toolName = activity.toolName ?? 'tool';
+  return TOOL_LABELS[toolName] ?? toolName.replaceAll('_', ' ');
+}
+
+function getToolStatusLabel(activity) {
+  switch (activity?.state) {
+    case 'partial-call':
+    case 'input-streaming':
+      return 'Preparing';
+    case 'call':
+    case 'input-available':
+      return 'Running';
+    case 'result':
+      return activity?.errorText ? 'Error' : 'Done';
+    case 'output-available':
+      return 'Done';
+    case 'output-error':
+      return 'Error';
+    default:
+      return 'Working';
+  }
+}
+
+function getToolSummary(activity) {
+  const toolName = activity.toolName ?? 'tool';
+  const input = activity?.input ?? {};
+
+  if (toolName === 'list_available_queries') {
+    return 'Inspecting the available reporting queries.';
+  }
+  if (toolName === 'describe_query') {
+    return input?.name
+      ? `Inspecting the "${input.name}" query schema.`
+      : 'Inspecting query metadata.';
+  }
+  if (toolName === 'preview_query') {
+    return input?.name
+      ? `Running "${input.name}" before drafting the report.`
+      : 'Running a query preview before drafting the report.';
+  }
+  if (toolName === 'apply_report_spec') {
+    return 'Validating and applying the next report spec.';
+  }
+
+  return `Running ${getToolLabel(activity)}.`;
+}
+
+function getToolResultSummary(activity) {
+  if (
+    activity?.state !== 'result' &&
+    activity?.state !== 'output-available' &&
+    activity?.state !== 'output-error'
+  ) {
+    return null;
+  }
+
+  const toolName = activity.toolName ?? 'tool';
+  const output = activity?.output;
+
+  if (activity?.errorText) {
+    return activity.errorText;
+  }
+
+  if (activity?.state === 'output-error') {
+    return activity?.errorText ?? 'Tool execution failed.';
+  }
+
+  if (toolName === 'list_available_queries') {
+    const count = Array.isArray(output?.queries) ? output.queries.length : null;
+    return count != null ? `Loaded ${count} published quer${count === 1 ? 'y' : 'ies'}.` : null;
+  }
+
+  if (toolName === 'describe_query') {
+    if (output?.found && output?.query?.name) {
+      return `Loaded canonical fields and params for "${output.query.name}".`;
+    }
+    return output?.found === false ? 'The requested query was not found in the catalog.' : null;
+  }
+
+  if (toolName === 'preview_query') {
+    if (output?.ok === false) {
+      return output?.error ?? 'The query preview could not run.';
+    }
+    if (output?.ok === true) {
+      const previewCount = Array.isArray(output?.rows) ? output.rows.length : 0;
+      const total = typeof output?.totalCount === 'number' ? output.totalCount : null;
+      return total != null
+        ? `Preview returned ${previewCount} row${previewCount === 1 ? '' : 's'} of ${total}.`
+        : `Preview returned ${previewCount} row${previewCount === 1 ? '' : 's'}.`;
+    }
+  }
+
+  if (toolName === 'apply_report_spec') {
+    if (output?.applied === true) return 'Live report updated.';
+    if (output?.applied === false) return output?.error ?? 'The report spec failed validation.';
+  }
+
+  return null;
+}
+
 export default function App() {
   const dataProvider = useMemo(() => createDataProvider(), []);
   const [currentSpec, setCurrentSpec] = useState(executiveCommandCenterSpec);
@@ -38,24 +181,35 @@ export default function App() {
 
   const chat = useChat({
     api: '/api/chat',
+    streamProtocol: 'data',
+    onError(error) {
+      console.error('Chat stream error:', error);
+      setStreamError(error instanceof Error ? error.message : String(error));
+    },
+    async onResponse(response) {
+      if (!response.ok) {
+        console.error('Chat request failed:', response.status, response.statusText);
+      }
+    },
   });
 
-  // Apply report spec when the server returns a successful apply_report_dls result (tool is executed on server).
+  // Apply report spec when the server returns a successful apply_report_spec result (tool is executed on server).
   useEffect(() => {
     const messages = chat.messages ?? [];
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
-      if (msg?.role !== 'assistant' || !msg.toolInvocations?.length) continue;
-      for (const inv of msg.toolInvocations) {
+      if (msg?.role !== 'assistant') continue;
+
+      for (const part of getToolActivities(msg)) {
         if (
-          inv.toolName === 'apply_report_dls' &&
-          inv.state === 'result' &&
-          inv.result?.applied === true
+          part.toolName === 'apply_report_spec' &&
+          (part.state === 'result' || part.state === 'output-available') &&
+          part.output?.applied === true
         ) {
-          if (inv.toolCallId === lastAppliedToolCallIdRef.current) return;
-          const spec = inv.args?.dls ?? inv.input?.dls;
+          if (part.toolCallId === lastAppliedToolCallIdRef.current) return;
+          const spec = part.input?.spec;
           if (spec != null && typeof spec === 'object' && !Array.isArray(spec)) {
-            lastAppliedToolCallIdRef.current = inv.toolCallId;
+            lastAppliedToolCallIdRef.current = part.toolCallId;
             setCurrentSpec(spec);
           }
           return;
@@ -93,7 +247,6 @@ export default function App() {
   };
 
   const loading = chat.status === 'streaming' || chat.status === 'submitted';
-  // Server errors are sent as data-stream code 3 and set chat.error by the SDK
   const displayError = streamError ?? chat.error?.message ?? null;
 
   return (
@@ -106,15 +259,16 @@ export default function App() {
             </h1>
             <p className="mt-1.5 text-sm text-slate-600">
               A richer portfolio and program dataset showcasing modern reporting DSL patterns:
-              timelines, signal maps, advanced tables, risk reviews, and narrative boards. Use it
-              as a starter for connecting your own dataset through the query catalog and data
-              provider.
+              timelines, signal maps, advanced tables, risk reviews, and narrative boards. Use it as
+              a starter for connecting your own dataset through the query catalog and data provider.
             </p>
           </div>
 
           <div className="portfolio-report-picker">
             <span className="text-sm text-slate-600 mr-2">
-              {starterReports.find((r) => r.spec.id === currentSpec?.id)?.label ?? currentSpec?.title ?? 'Report'}
+              {starterReports.find((r) => r.spec.id === currentSpec?.id)?.label ??
+                currentSpec?.title ??
+                'Report'}
             </span>
             <label htmlFor="portfolio-report-select" className="sr-only">
               Select report
@@ -143,21 +297,13 @@ export default function App() {
           <div className="portfolio-chat-panel-header">
             <div>
               <h2 className="portfolio-section-title">Chat</h2>
-              <p className="portfolio-helper-text">
-                Chat with the assistant.
-              </p>
+              <p className="portfolio-helper-text">Chat with the assistant.</p>
             </div>
           </div>
 
           <div className="portfolio-chat-history">
             {chat.messages?.map((message) => {
-              const textParts = message.parts?.filter((p) => p.type === 'text') ?? [];
-              const hasReportUpdate =
-                message.role === 'assistant' &&
-                textParts.length === 0 &&
-                message.toolInvocations?.some(
-                  (t) => t.toolName === 'apply_report_dls' && t.state === 'result'
-                );
+              const toolParts = getToolActivities(message);
               return (
                 <article
                   key={message.id}
@@ -174,17 +320,39 @@ export default function App() {
                             <p key={`${message.id}-${i}`}>{part.text}</p>
                           ) : null
                         )}
-                        {hasReportUpdate && (
-                          <p className="portfolio-helper-text">Report updated.</p>
-                        )}
+                        {toolParts.length > 0 ? (
+                          <div className="portfolio-chat-tool-list">
+                            {toolParts.map((part) => {
+                              const resultSummary = getToolResultSummary(part);
+                              return (
+                                <section
+                                  key={part.toolCallId}
+                                  className={`portfolio-chat-tool portfolio-chat-tool-state-${part.state ?? 'working'}`}
+                                >
+                                  <div className="portfolio-chat-tool-header">
+                                    <span className="portfolio-chat-tool-name">
+                                      {getToolLabel(part)}
+                                    </span>
+                                    <span className="portfolio-chat-tool-state">
+                                      {getToolStatusLabel(part)}
+                                    </span>
+                                  </div>
+                                  <p className="portfolio-chat-tool-summary">
+                                    {getToolSummary(part)}
+                                  </p>
+                                  {resultSummary ? (
+                                    <p className="portfolio-chat-tool-result">{resultSummary}</p>
+                                  ) : null}
+                                </section>
+                              );
+                            })}
+                          </div>
+                        ) : null}
                       </>
                     ) : (
                       <>
                         {message.content != null && (
                           <p>{typeof message.content === 'string' ? message.content : ''}</p>
-                        )}
-                        {hasReportUpdate && (
-                          <p className="portfolio-helper-text">Report updated.</p>
                         )}
                       </>
                     )}
@@ -219,9 +387,7 @@ export default function App() {
               {displayError ? (
                 <p className="portfolio-error-text">{displayError}</p>
               ) : (
-                <p className="portfolio-helper-text">
-                  Send a message to the assistant.
-                </p>
+                <p className="portfolio-helper-text">Send a message to the assistant.</p>
               )}
               <button
                 type="submit"
@@ -242,11 +408,7 @@ export default function App() {
                 Switch between the rendered report and the raw DSL to see how the example is built.
               </p>
             </div>
-            <div
-              className="portfolio-view-toggle"
-              role="tablist"
-              aria-label="Report view mode"
-            >
+            <div className="portfolio-view-toggle" role="tablist" aria-label="Report view mode">
               <button
                 type="button"
                 role="tab"

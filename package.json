@@ -20,6 +20,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/react": "^1.0.0",
+    "@reporting/agent-kit": "file:../reporting/packages/agent-kit",
     "@reporting/core": "file:../reporting/packages/core",
     "@reporting/mcp-server": "file:../reporting/packages/mcp-server",
     "@reporting/react-ui": "file:../reporting/packages/react-ui",
@@ -31,10 +32,10 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^8.2.2",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.2.1",
-    "vite": "^5.0.0"
+    "vite": "^6.3.7"
   }
 }

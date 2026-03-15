@@ -4,7 +4,7 @@
 
 The app uses a **portfolio and program delivery** dataset as the **example domain**. It includes initiatives, roadmap items, work items, and risks so the starter can showcase timelines, signal maps, advanced tables, and executive narrative views. You can replace it by editing the query catalog, the data provider, and optionally the reporting context—see [Connecting your own dataset](#connecting-your-own-dataset).
 
-Built on [@reporting/core](https://github.com/Prism-Reporting/reporting) and [@reporting/react-ui](https://github.com/Prism-Reporting/reporting). It demonstrates prompt-to-spec flow with a local reporting context provider, a local query catalog, and server-side validation plus dry-run execution.
+Built on [@reporting/core](https://github.com/Prism-Reporting/reporting), [@reporting/react-ui](https://github.com/Prism-Reporting/reporting), and `@reporting/agent-kit`. It demonstrates prompt-to-spec flow with a local reporting context provider, a local query catalog, a generated AgentSkills workflow, and server-side validation plus dry-run execution.
 
 ## Why this example exists
 
@@ -24,7 +24,7 @@ The app responds with a `ReportSpec` grounded in the published query catalog, th
 
 ## Connecting your own dataset
 
-This starter uses **no premium features**: the agent uses the local reporting context provider, the local query catalog, and the local data provider. To connect your data:
+This starter uses **no premium features**: the agent uses the local reporting context provider, the local query catalog, the local data provider, and a generated local skill from `@reporting/agent-kit`. To connect your data:
 
 1. **Define queries in the query catalog** — Edit `src/query-catalog.js`. Export a single function (e.g. `getQueryCatalog()`) that returns `{ queries: QueryEntry[] }`. Each entry has `name`, `description`, `fields`, `params`, and optional `notes`. The catalog is the single source of truth for what the agent knows about available queries.
 
@@ -44,7 +44,7 @@ The mocked data provider publishes initiative, roadmap, work-item, and risk quer
 
 ## Prompt-driven report generation
 
-`POST /api/chat` uses a server-side OpenAI agent to generate or update reports from natural language. The agent receives the full reporting DSL guide plus the full local query catalog in its system prompt, then drafts a `ReportSpec`. Before the UI accepts a spec, the server validates it and dry-runs it against the local data provider. To enable it, copy `.env.example` to `.env` and set `OPENAI_API_KEY`. The app still works without it for the curated starter dashboards.
+`POST /api/chat` uses a server-side OpenAI agent to generate or update reports from natural language. The server generates a local AgentSkills-compatible report skill from `@reporting/agent-kit`, loads it into the runtime, and combines it with the shared reporting DSL guide plus the local reporting context before drafting a `ReportSpec`. Before the UI accepts a spec, the server validates it and dry-runs it against the local data provider. To enable it, copy `.env.example` to `.env` and set `OPENAI_API_KEY`. The app still works without it for the curated starter dashboards.
 
 ## Prerequisites
 
@@ -67,7 +67,7 @@ Optional:
 npm install
 ```
 
-This installs dependencies and links the reporting packages (e.g. `@reporting/mcp-server`) from the sibling repo when using `file:../reporting/packages/...`.
+This installs dependencies and links the reporting packages (including `@reporting/agent-kit`) from the sibling repo when using `file:../reporting/packages/...`.
 
 ## Build
 
@@ -83,7 +83,7 @@ This builds the sibling `reporting` packages and the local Vite client bundle. R
 npm start
 ```
 
-Then open [http://localhost:3000](http://localhost:3000). The agent and UI use the same local reporting context provider, query catalog, and data provider.
+Then open [http://localhost:3000](http://localhost:3000). The agent and UI use the same local reporting context provider, query catalog, generated skill, and data provider.
 
 ## Development
 

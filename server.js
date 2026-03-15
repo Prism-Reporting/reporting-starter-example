@@ -3,6 +3,7 @@ import express from 'express';
 import path from 'path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { parseJsonEventStream, readUIMessageStream, uiMessageChunkSchema } from 'ai';
 import { createPortfolioDataProvider } from './src/data-provider.js';
 import { getQueryCatalog } from './src/query-catalog.js';
 import { chatStream } from './src/agent/build-dashboard.js';
@@ -12,10 +13,6 @@ const port = process.env.PORT || 3000;
 /** Chat route timeout (ms). */
 const CHAT_ROUTE_TIMEOUT_MS = 5 * 60 * 1000;
 
-/**
- * Data stream wire codes expected by @ai-sdk/react useChat (processDataStream).
- * Converts SSE payloads from ai package (data: {...}) to "code: value\n" lines.
- */
 function parsePartialJson(text) {
   if (!text || typeof text !== 'string') return { value: undefined };
   const t = text.trim();
@@ -27,170 +24,188 @@ function parsePartialJson(text) {
   }
 }
 
-/**
- * Build assistant message for persistence from accumulated stream state.
- * Shape compatible with convertToModelMessages (role, content, toolInvocations).
- */
-function buildAssistantMessageForStore(accumulated) {
-  const toolInvocations = Array.from(accumulated.toolCalls.values()).map(
-    ({ toolCallId, toolName, args, result }) => ({
-      toolCallId,
-      toolName,
-      args: args ?? {},
-      state: 'result',
-      result,
-    })
-  );
-  return {
-    role: 'assistant',
-    content: accumulated.text ?? '',
-    toolInvocations: toolInvocations.length ? toolInvocations : undefined,
-  };
+function formatDataStreamPart(code, value) {
+  return `${code}:${JSON.stringify(value)}\n`;
 }
 
-/**
- * Buffer stream parts and send only the final response (no tool-call chunks).
- * Errors are forwarded immediately. useChat receives one batch: text + tool invocations + finish.
- *
- * @param {{ onFinish?: (assistantMessage: object) => void }} options - optional callback when stream finishes (for persisting assistant message)
- */
-function sseToDataStreamTransform(options = {}) {
-  const onFinish = options.onFinish;
-  let buffer = '';
-  /** Accumulate argsTextDelta per toolCallId when we don't get tool-input-available with full input */
+function createUiMessageChunkToDataStream() {
   const pendingToolCalls = new Map();
-  /** Accumulate assistant message for onFinish and for final flush (text + toolCalls) */
-  const accumulated = {
-    text: '',
-    toolCalls: new Map(),
-  };
-
-  function processPart(part, controller) {
-    const type = part.type;
-    // Errors go through immediately; everything else is buffered.
-    if (type === 'error' && part.errorText) {
-      controller.enqueue(new TextEncoder().encode(`3:${JSON.stringify(part.errorText)}\n`));
-      return;
-    }
-    if (type === 'text-delta' && typeof part.delta === 'string') {
-      accumulated.text += part.delta;
-      return;
-    }
-    if (type === 'tool-input-start' && part.toolCallId && part.toolName) {
-      pendingToolCalls.set(part.toolCallId, { toolName: part.toolName, text: '' });
-      return;
-    }
-    if (type === 'tool-input-delta' && part.toolCallId) {
-      const pending = pendingToolCalls.get(part.toolCallId);
-      if (pending) pending.text += part.inputTextDelta ?? '';
-      return;
-    }
-    if (type === 'tool-input-available' && part.toolCallId && part.toolName) {
-      const args = part.input ?? {};
-      accumulated.toolCalls.set(part.toolCallId, {
-        toolCallId: part.toolCallId,
-        toolName: part.toolName,
-        args,
-      });
-      pendingToolCalls.delete(part.toolCallId);
-      return;
-    }
-    if (type === 'tool-output-available' && part.toolCallId) {
-      const existing = accumulated.toolCalls.get(part.toolCallId) ?? {};
-      accumulated.toolCalls.set(part.toolCallId, { ...existing, result: part.output });
-      return;
-    }
-    if (type === 'tool-output-error' && part.toolCallId) {
-      const errorResult = { applied: false, error: part.errorText ?? 'Tool error' };
-      const existing = accumulated.toolCalls.get(part.toolCallId) ?? {};
-      accumulated.toolCalls.set(part.toolCallId, { ...existing, result: errorResult });
-      return;
-    }
-    if (type === 'finish') {
-      // Resolve any pending tool args from deltas
-      for (const [toolCallId, pending] of Array.from(pendingToolCalls)) {
-        const { value: args } = parsePartialJson(pending.text);
-        if (args != null && typeof args === 'object') {
-          accumulated.toolCalls.set(toolCallId, {
-            toolCallId,
-            toolName: pending.toolName,
-            args,
-          });
-        }
-      }
-      pendingToolCalls.clear();
-
-      if (onFinish) {
-        try {
-          onFinish(buildAssistantMessageForStore(accumulated));
-        } catch (err) {
-          console.error('onFinish (persist assistant message):', err);
-        }
-      }
-
-      // Send final response only: text, then tool invocations (9 + a), then finish (d).
-      const enc = new TextEncoder();
-      if (accumulated.text) {
-        controller.enqueue(enc.encode(`0:${JSON.stringify(accumulated.text)}\n`));
-      }
-      for (const [, inv] of accumulated.toolCalls) {
-        controller.enqueue(
-          enc.encode(`9:${JSON.stringify({ toolCallId: inv.toolCallId, toolName: inv.toolName, args: inv.args ?? {} })}\n`)
-        );
-        if (inv.result !== undefined) {
-          controller.enqueue(
-            enc.encode(`a:${JSON.stringify({ toolCallId: inv.toolCallId, result: inv.result })}\n`)
-          );
-        }
-      }
-      controller.enqueue(
-        enc.encode(`d:${JSON.stringify({ finishReason: part.finishReason ?? 'stop' })}\n`)
-      );
-    }
-  }
+  const encoder = new TextEncoder();
 
   return new TransformStream({
-    transform(chunk, controller) {
-      buffer += new TextDecoder().decode(chunk);
-      const events = buffer.split('\n\n');
-      buffer = events.pop() ?? '';
-      for (const event of events) {
-        const line = event.split('\n').find((l) => l.startsWith('data: '));
-        if (!line) continue;
-        const payload = line.slice(6);
-        if (payload === '[DONE]') continue;
-        try {
-          processPart(JSON.parse(payload), controller);
-        } catch (_) {
-          // ignore parse/conversion errors for unknown part types
-        }
-      }
-    },
-    flush(controller) {
-      for (const [toolCallId, pending] of pendingToolCalls) {
-        const { value: args } = parsePartialJson(pending.text);
-        if (args != null && typeof args === 'object') {
-          accumulated.toolCalls.set(toolCallId, {
-            toolCallId,
-            toolName: pending.toolName,
-            args,
-          });
-        }
-      }
-      pendingToolCalls.clear();
-      if (buffer.trim()) {
-        const line = buffer.split('\n').find((l) => l.startsWith('data: '));
-        if (line) {
-          const payload = line.slice(6);
-          if (payload !== '[DONE]') {
-            try {
-              processPart(JSON.parse(payload), controller);
-            } catch (_) {}
+    transform(part, controller) {
+      switch (part.type) {
+        case 'start':
+          if (part.messageId) {
+            controller.enqueue(
+              encoder.encode(formatDataStreamPart('f', { messageId: part.messageId }))
+            );
           }
+          break;
+        case 'start-step':
+          if (part.messageId) {
+            controller.enqueue(
+              encoder.encode(formatDataStreamPart('f', { messageId: part.messageId }))
+            );
+          }
+          break;
+        case 'text-delta':
+          controller.enqueue(encoder.encode(formatDataStreamPart('0', part.delta ?? '')));
+          break;
+        case 'reasoning-delta':
+          controller.enqueue(encoder.encode(formatDataStreamPart('g', part.delta ?? '')));
+          break;
+        case 'tool-input-start':
+          pendingToolCalls.set(part.toolCallId, { toolName: part.toolName, text: '' });
+          controller.enqueue(
+            encoder.encode(
+              formatDataStreamPart('b', {
+                toolCallId: part.toolCallId,
+                toolName: part.toolName,
+              })
+            )
+          );
+          break;
+        case 'tool-input-delta': {
+          const pending = pendingToolCalls.get(part.toolCallId);
+          if (pending) pending.text += part.inputTextDelta ?? '';
+          controller.enqueue(
+            encoder.encode(
+              formatDataStreamPart('c', {
+                toolCallId: part.toolCallId,
+                argsTextDelta: part.inputTextDelta ?? '',
+              })
+            )
+          );
+          break;
         }
+        case 'tool-input-available':
+          pendingToolCalls.delete(part.toolCallId);
+          controller.enqueue(
+            encoder.encode(
+              formatDataStreamPart('9', {
+                toolCallId: part.toolCallId,
+                toolName: part.toolName,
+                args: part.input ?? {},
+              })
+            )
+          );
+          break;
+        case 'tool-input-error':
+          pendingToolCalls.delete(part.toolCallId);
+          controller.enqueue(
+            encoder.encode(
+              formatDataStreamPart('9', {
+                toolCallId: part.toolCallId,
+                toolName: part.toolName,
+                args:
+                  part.input && typeof part.input === 'object' && !Array.isArray(part.input)
+                    ? part.input
+                    : {},
+              })
+            )
+          );
+          controller.enqueue(
+            encoder.encode(
+              formatDataStreamPart('a', {
+                toolCallId: part.toolCallId,
+                result: { error: part.errorText ?? 'Tool input error' },
+              })
+            )
+          );
+          break;
+        case 'tool-output-available':
+          controller.enqueue(
+            encoder.encode(
+              formatDataStreamPart('a', {
+                toolCallId: part.toolCallId,
+                result: part.output,
+              })
+            )
+          );
+          break;
+        case 'tool-output-error':
+          controller.enqueue(
+            encoder.encode(
+              formatDataStreamPart('a', {
+                toolCallId: part.toolCallId,
+                result: { error: part.errorText ?? 'Tool output error' },
+              })
+            )
+          );
+          break;
+        case 'finish-step':
+          controller.enqueue(
+            encoder.encode(
+              formatDataStreamPart('e', {
+                finishReason: part.finishReason ?? 'unknown',
+                isContinued: false,
+              })
+            )
+          );
+          break;
+        case 'finish':
+          for (const [toolCallId, pending] of pendingToolCalls) {
+            const { value: args } = parsePartialJson(pending.text);
+            controller.enqueue(
+              encoder.encode(
+                formatDataStreamPart('9', {
+                  toolCallId,
+                  toolName: pending.toolName,
+                  args: args && typeof args === 'object' && !Array.isArray(args) ? args : {},
+                })
+              )
+            );
+          }
+          pendingToolCalls.clear();
+          controller.enqueue(
+            encoder.encode(
+              formatDataStreamPart('d', {
+                finishReason: part.finishReason ?? 'stop',
+              })
+            )
+          );
+          break;
+        case 'error':
+          controller.enqueue(
+            encoder.encode(formatDataStreamPart('3', part.errorText ?? 'Stream error'))
+          );
+          break;
+        default:
+          break;
       }
     },
   });
+}
+
+async function persistAssistantMessageFromStream(stream, onFinish) {
+  let latestMessage = null;
+
+  try {
+    const uiChunkStream = parseJsonEventStream({
+      stream,
+      schema: uiMessageChunkSchema,
+    }).pipeThrough(
+      new TransformStream({
+        async transform(chunk, controller) {
+          if (!chunk.success) {
+            throw chunk.error;
+          }
+          controller.enqueue(chunk.value);
+        },
+      })
+    );
+
+    for await (const message of readUIMessageStream({ stream: uiChunkStream })) {
+      latestMessage = message;
+    }
+
+    if (latestMessage && onFinish) {
+      onFinish(latestMessage);
+    }
+  } catch (err) {
+    console.error('persist assistant message:', err);
+  }
 }
 
 /**
@@ -321,8 +336,7 @@ export function createApp(options = {}) {
         !Array.isArray(body.currentSpec)
           ? body.currentSpec
           : null;
-      const prompt =
-        typeof body.message === 'string' ? body.message.trim() : '';
+      const prompt = typeof body.message === 'string' ? body.message.trim() : '';
       if (!prompt) {
         return res.status(400).json({ error: 'No user message found' });
       }
@@ -356,9 +370,30 @@ export function createApp(options = {}) {
           conversationStore.set(sessionId, h);
         }
       };
-      const transformed = response.body.pipeThrough(
-        sseToDataStreamTransform({ onFinish })
-      );
+
+      if (!response.body) {
+        throw new Error('Chat response body is empty');
+      }
+
+      const [clientStream, persistenceStream] = response.body.tee();
+      void persistAssistantMessageFromStream(persistenceStream, onFinish);
+
+      const transformed = parseJsonEventStream({
+        stream: clientStream,
+        schema: uiMessageChunkSchema,
+      })
+        .pipeThrough(
+          new TransformStream({
+            async transform(chunk, controller) {
+              if (!chunk.success) {
+                throw chunk.error;
+              }
+              controller.enqueue(chunk.value);
+            },
+          })
+        )
+        .pipeThrough(createUiMessageChunkToDataStream());
+
       const reader = transformed.getReader();
       const pump = () =>
         reader.read().then(({ done, value }) => {
@@ -370,7 +405,7 @@ export function createApp(options = {}) {
           return pump();
         });
       pump().catch((err) => {
-        console.error('Chat stream error:', err);
+        console.error('Chat stream error while adapting UI message stream to data protocol:', err);
         if (!res.headersSent) res.status(500).json({ error: String(err) });
         else
           try {

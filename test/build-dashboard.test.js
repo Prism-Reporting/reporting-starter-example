@@ -31,20 +31,17 @@ describe('starter agent grounding', () => {
     });
 
     assert.match(systemPrompt, /Report DSL guide:/);
-    assert.match(systemPrompt, /Authoring rules/);
+    assert.match(systemPrompt, /Loaded agent skill instructions:/);
+    assert.match(systemPrompt, /inspect the published query catalog/i);
+    assert.match(systemPrompt, /preview_query/);
+    assert.match(systemPrompt, /apply_report_spec/);
+    assert.match(systemPrompt, /Dataset context:/);
     assert.match(systemPrompt, /Dataset query cards:/);
     assert.match(systemPrompt, /- initiatives:/);
     assert.match(systemPrompt, /- roadmapItems:/);
     assert.match(systemPrompt, /Field aliases:/);
-    assert.match(
-      systemPrompt,
-      /Use delivery\.mode = "paginatedList" for tables and browse-style card views/
-    );
-    assert.match(systemPrompt, /Conditional formatting is supported in the Report DSL/);
-    assert.match(systemPrompt, /Table widgets support config\.conditionalFormatting/);
-    assert.match(systemPrompt, /Do not claim conditional formatting is unsupported/);
     assert.doesNotMatch(systemPrompt, /validate_report_spec/);
-    assert.match(systemPrompt, /call `apply_report_dls` with the complete report spec/i);
+    assert.doesNotMatch(systemPrompt, /apply_report_dls/);
     assert.doesNotMatch(systemPrompt, /Simplify this to one KPI/);
     assert.doesNotMatch(systemPrompt, /Title: Executive Command Center/);
   });

@@ -1,173 +1,259 @@
 import { defineQueryCatalog } from '@reporting/core';
 
+function field(type, semantic = {}) {
+  return {
+    type,
+    ...(Object.keys(semantic).length > 0 ? { semantic } : {}),
+  };
+}
+
+function optionalParam(type, semantic = {}) {
+  return {
+    type,
+    optional: true,
+    ...(Object.keys(semantic).length > 0 ? { semantic } : {}),
+  };
+}
+
+const idField = () => field('string', { kind: 'id', filterable: true, sortable: true });
+const labelField = (exampleValues = undefined) =>
+  field('string', {
+    kind: 'label',
+    filterable: true,
+    sortable: true,
+    preferredWidgetRoles: ['label', 'tooltip'],
+    ...(exampleValues ? { exampleValues } : {}),
+  });
+const dimensionField = (exampleValues = undefined) =>
+  field('string', {
+    kind: 'dimension',
+    groupable: true,
+    filterable: true,
+    sortable: true,
+    preferredWidgetRoles: ['category', 'series', 'tooltip'],
+    ...(exampleValues ? { exampleValues } : {}),
+  });
+const measureField = () =>
+  field('number', {
+    kind: 'measure',
+    sortable: true,
+    aggregatable: true,
+    preferredWidgetRoles: ['value'],
+  });
+const timeField = () =>
+  field('date', {
+    kind: 'time',
+    filterable: true,
+    sortable: true,
+    preferredWidgetRoles: ['time', 'category', 'tooltip'],
+  });
+const timeLikeField = () =>
+  field('string', {
+    kind: 'time',
+    filterable: true,
+    sortable: true,
+    preferredWidgetRoles: ['time', 'tooltip'],
+  });
+
+const multiFilterParam = (mapsToField, exampleValues = undefined) =>
+  optionalParam('string', {
+    mapsToField,
+    mode: 'multi',
+    ...(exampleValues ? { exampleValues } : {}),
+  });
+const exactFilterParam = (mapsToField, exampleValues = undefined) =>
+  optionalParam('string', {
+    mapsToField,
+    mode: 'exact',
+    ...(exampleValues ? { exampleValues } : {}),
+  });
+const searchParam = () => optionalParam('string', { mode: 'search' });
+const dateRangeFromParam = (mapsToField) => optionalParam('date', { mapsToField, mode: 'rangeFrom' });
+const dateRangeToParam = (mapsToField) => optionalParam('date', { mapsToField, mode: 'rangeTo' });
+const numberRangeFromParam = (mapsToField) =>
+  optionalParam('number', { mapsToField, mode: 'rangeFrom' });
+const numberRangeToParam = (mapsToField) => optionalParam('number', { mapsToField, mode: 'rangeTo' });
+
 const initiativeFieldShape = {
-  id: { type: 'string' },
-  portfolio: { type: 'string' },
-  program: { type: 'string' },
-  name: { type: 'string' },
-  owner: { type: 'string' },
-  sponsor: { type: 'string' },
-  phase: { type: 'string' },
-  status: { type: 'string' },
-  health: { type: 'string' },
-  spendPlanned: { type: 'number' },
-  spendActual: { type: 'number' },
-  forecastValue: { type: 'number' },
-  confidence: { type: 'number' },
-  score: { type: 'number' },
-  completionPercent: { type: 'number' },
-  strategicTheme: { type: 'string' },
-  startDate: { type: 'date' },
-  endDate: { type: 'date' },
-  summary: { type: 'string' },
+  id: idField(),
+  portfolio: dimensionField(),
+  program: dimensionField(),
+  name: labelField(),
+  owner: dimensionField(),
+  sponsor: dimensionField(),
+  phase: dimensionField(['DISCOVERY', 'MOBILIZING', 'EXECUTION', 'SUSTAIN']),
+  status: dimensionField(['ON_TRACK', 'AT_RISK', 'BLOCKED', 'COMPLETE']),
+  health: dimensionField(['GREEN', 'AMBER', 'RED']),
+  spendPlanned: measureField(),
+  spendActual: measureField(),
+  forecastValue: measureField(),
+  confidence: measureField(),
+  score: measureField(),
+  completionPercent: measureField(),
+  strategicTheme: dimensionField(),
+  startDate: timeField(),
+  endDate: timeField(),
+  summary: labelField(),
 };
 
 const initiativeParamShape = {
-  portfolio: { type: 'string', optional: true },
-  program: { type: 'string', optional: true },
-  owner: { type: 'string', optional: true },
-  phase: { type: 'string', optional: true },
-  status: { type: 'string', optional: true },
-  health: { type: 'string', optional: true },
-  search: { type: 'string', optional: true },
-  startFrom: { type: 'date', optional: true },
-  startTo: { type: 'date', optional: true },
-  endFrom: { type: 'date', optional: true },
-  endTo: { type: 'date', optional: true },
-  scoreFrom: { type: 'number', optional: true },
-  scoreTo: { type: 'number', optional: true },
+  portfolio: multiFilterParam('portfolio'),
+  program: multiFilterParam('program'),
+  owner: multiFilterParam('owner'),
+  phase: multiFilterParam('phase', ['DISCOVERY', 'MOBILIZING', 'EXECUTION', 'SUSTAIN']),
+  status: multiFilterParam('status', ['ON_TRACK', 'AT_RISK', 'BLOCKED', 'COMPLETE']),
+  health: multiFilterParam('health', ['GREEN', 'AMBER', 'RED']),
+  search: searchParam(),
+  startFrom: dateRangeFromParam('startDate'),
+  startTo: dateRangeToParam('startDate'),
+  endFrom: dateRangeFromParam('endDate'),
+  endTo: dateRangeToParam('endDate'),
+  scoreFrom: numberRangeFromParam('score'),
+  scoreTo: numberRangeToParam('score'),
 };
 
 const roadmapFieldShape = {
-  id: { type: 'string' },
-  initiativeId: { type: 'string' },
-  initiativeName: { type: 'string' },
-  portfolio: { type: 'string' },
-  program: { type: 'string' },
-  workstream: { type: 'string' },
-  stage: { type: 'string' },
-  name: { type: 'string' },
-  owner: { type: 'string' },
-  status: { type: 'string' },
-  health: { type: 'string' },
-  completionPercent: { type: 'number' },
-  dependencyRisk: { type: 'number' },
-  startDate: { type: 'date' },
-  endDate: { type: 'date' },
-  milestoneDate: { type: 'date' },
-  narrative: { type: 'string' },
+  id: idField(),
+  initiativeId: idField(),
+  initiativeName: labelField(),
+  portfolio: dimensionField(),
+  program: dimensionField(),
+  workstream: dimensionField(),
+  stage: dimensionField(),
+  name: labelField(),
+  owner: dimensionField(),
+  status: dimensionField(['NOT_STARTED', 'IN_PROGRESS', 'AT_RISK', 'BLOCKED', 'DONE']),
+  health: dimensionField(['GREEN', 'AMBER', 'RED']),
+  completionPercent: measureField(),
+  dependencyRisk: measureField(),
+  startDate: timeField(),
+  endDate: timeField(),
+  milestoneDate: timeField(),
+  narrative: labelField(),
 };
 
 const roadmapParamShape = {
-  portfolio: { type: 'string', optional: true },
-  program: { type: 'string', optional: true },
-  initiativeId: { type: 'string', optional: true },
-  owner: { type: 'string', optional: true },
-  workstream: { type: 'string', optional: true },
-  stage: { type: 'string', optional: true },
-  status: { type: 'string', optional: true },
-  health: { type: 'string', optional: true },
-  search: { type: 'string', optional: true },
-  startFrom: { type: 'date', optional: true },
-  startTo: { type: 'date', optional: true },
-  endFrom: { type: 'date', optional: true },
-  endTo: { type: 'date', optional: true },
-  dependencyRiskFrom: { type: 'number', optional: true },
-  dependencyRiskTo: { type: 'number', optional: true },
+  portfolio: multiFilterParam('portfolio'),
+  program: multiFilterParam('program'),
+  initiativeId: exactFilterParam('initiativeId'),
+  owner: multiFilterParam('owner'),
+  workstream: multiFilterParam('workstream'),
+  stage: multiFilterParam('stage'),
+  status: multiFilterParam('status', ['NOT_STARTED', 'IN_PROGRESS', 'AT_RISK', 'BLOCKED', 'DONE']),
+  health: multiFilterParam('health', ['GREEN', 'AMBER', 'RED']),
+  search: searchParam(),
+  startFrom: dateRangeFromParam('startDate'),
+  startTo: dateRangeToParam('startDate'),
+  endFrom: dateRangeFromParam('endDate'),
+  endTo: dateRangeToParam('endDate'),
+  dependencyRiskFrom: numberRangeFromParam('dependencyRisk'),
+  dependencyRiskTo: numberRangeToParam('dependencyRisk'),
 };
 
 const workItemFieldShape = {
-  id: { type: 'string' },
-  initiativeId: { type: 'string' },
-  initiativeName: { type: 'string' },
-  roadmapItemId: { type: 'string' },
-  portfolio: { type: 'string' },
-  workstream: { type: 'string' },
-  name: { type: 'string' },
-  owner: { type: 'string' },
-  status: { type: 'string' },
-  readiness: { type: 'string' },
-  priority: { type: 'string' },
-  effortPoints: { type: 'number' },
-  blockedPoints: { type: 'number' },
-  completionPercent: { type: 'number' },
-  targetDate: { type: 'date' },
-  completedDate: { type: 'string' },
+  id: idField(),
+  initiativeId: idField(),
+  initiativeName: labelField(),
+  roadmapItemId: idField(),
+  portfolio: dimensionField(),
+  workstream: dimensionField(),
+  name: labelField(),
+  owner: dimensionField(),
+  status: dimensionField(['NOT_STARTED', 'IN_PROGRESS', 'AT_RISK', 'BLOCKED', 'DONE']),
+  readiness: dimensionField(['READY', 'WATCH', 'BLOCKED']),
+  priority: dimensionField(['MEDIUM', 'HIGH', 'CRITICAL']),
+  effortPoints: measureField(),
+  blockedPoints: measureField(),
+  completionPercent: measureField(),
+  targetDate: timeField(),
+  completedDate: timeLikeField(),
 };
 
 const workItemParamShape = {
-  portfolio: { type: 'string', optional: true },
-  initiativeId: { type: 'string', optional: true },
-  roadmapItemId: { type: 'string', optional: true },
-  owner: { type: 'string', optional: true },
-  workstream: { type: 'string', optional: true },
-  status: { type: 'string', optional: true },
-  readiness: { type: 'string', optional: true },
-  priority: { type: 'string', optional: true },
-  search: { type: 'string', optional: true },
-  targetFrom: { type: 'date', optional: true },
-  targetTo: { type: 'date', optional: true },
+  portfolio: multiFilterParam('portfolio'),
+  initiativeId: exactFilterParam('initiativeId'),
+  roadmapItemId: exactFilterParam('roadmapItemId'),
+  owner: multiFilterParam('owner'),
+  workstream: multiFilterParam('workstream'),
+  status: multiFilterParam('status', ['NOT_STARTED', 'IN_PROGRESS', 'AT_RISK', 'BLOCKED', 'DONE']),
+  readiness: multiFilterParam('readiness', ['READY', 'WATCH', 'BLOCKED']),
+  priority: multiFilterParam('priority', ['MEDIUM', 'HIGH', 'CRITICAL']),
+  search: searchParam(),
+  targetFrom: dateRangeFromParam('targetDate'),
+  targetTo: dateRangeToParam('targetDate'),
 };
 
 const riskFieldShape = {
-  id: { type: 'string' },
-  initiativeId: { type: 'string' },
-  initiativeName: { type: 'string' },
-  portfolio: { type: 'string' },
-  program: { type: 'string' },
-  title: { type: 'string' },
-  category: { type: 'string' },
-  severity: { type: 'string' },
-  status: { type: 'string' },
-  owner: { type: 'string' },
-  exposure: { type: 'number' },
-  likelihood: { type: 'number' },
-  impact: { type: 'number' },
-  mitigationStage: { type: 'string' },
-  raisedDate: { type: 'date' },
-  reviewDate: { type: 'date' },
+  id: idField(),
+  initiativeId: idField(),
+  initiativeName: labelField(),
+  portfolio: dimensionField(),
+  program: dimensionField(),
+  title: labelField(),
+  category: dimensionField(),
+  severity: dimensionField(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  status: dimensionField(['OPEN', 'MITIGATING', 'MONITORING', 'CLOSED']),
+  owner: dimensionField(),
+  exposure: measureField(),
+  likelihood: measureField(),
+  impact: measureField(),
+  mitigationStage: dimensionField(['PLAN', 'EXECUTE', 'OBSERVE', 'DONE']),
+  raisedDate: timeField(),
+  reviewDate: timeField(),
 };
 
 const riskParamShape = {
-  portfolio: { type: 'string', optional: true },
-  program: { type: 'string', optional: true },
-  initiativeId: { type: 'string', optional: true },
-  severity: { type: 'string', optional: true },
-  status: { type: 'string', optional: true },
-  owner: { type: 'string', optional: true },
-  category: { type: 'string', optional: true },
-  search: { type: 'string', optional: true },
-  exposureFrom: { type: 'number', optional: true },
-  exposureTo: { type: 'number', optional: true },
-  raisedFrom: { type: 'date', optional: true },
-  raisedTo: { type: 'date', optional: true },
+  portfolio: multiFilterParam('portfolio'),
+  program: multiFilterParam('program'),
+  initiativeId: exactFilterParam('initiativeId'),
+  severity: multiFilterParam('severity', ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  status: multiFilterParam('status', ['OPEN', 'MITIGATING', 'MONITORING', 'CLOSED']),
+  owner: multiFilterParam('owner'),
+  category: multiFilterParam('category'),
+  search: searchParam(),
+  exposureFrom: numberRangeFromParam('exposure'),
+  exposureTo: numberRangeToParam('exposure'),
+  raisedFrom: dateRangeFromParam('raisedDate'),
+  raisedTo: dateRangeToParam('raisedDate'),
 };
 
 const initiativeSummaryFieldShape = {
-  period: { type: 'string' },
-  count: { type: 'number' },
-  spendActualTotal: { type: 'number' },
-  forecastValueTotal: { type: 'number' },
-  avgCompletionPercent: { type: 'number' },
-  avgConfidence: { type: 'number' },
-  trendScore: { type: 'number' },
+  period: field('string', {
+    kind: 'time',
+    sortable: true,
+    preferredWidgetRoles: ['time', 'category'],
+  }),
+  count: measureField(),
+  spendActualTotal: measureField(),
+  forecastValueTotal: measureField(),
+  avgCompletionPercent: measureField(),
+  avgConfidence: measureField(),
+  trendScore: measureField(),
 };
 
 const workItemSummaryFieldShape = {
-  period: { type: 'string' },
-  count: { type: 'number' },
-  readyCount: { type: 'number' },
-  blockedPointsTotal: { type: 'number' },
-  avgCompletionPercent: { type: 'number' },
-  trendPercentComplete: { type: 'number' },
+  period: field('string', {
+    kind: 'time',
+    sortable: true,
+    preferredWidgetRoles: ['time', 'category'],
+  }),
+  count: measureField(),
+  readyCount: measureField(),
+  blockedPointsTotal: measureField(),
+  avgCompletionPercent: measureField(),
+  trendPercentComplete: measureField(),
 };
 
 const riskSummaryFieldShape = {
-  period: { type: 'string' },
-  count: { type: 'number' },
-  openExposure: { type: 'number' },
-  criticalCount: { type: 'number' },
-  trendExposure: { type: 'number' },
+  period: field('string', {
+    kind: 'time',
+    sortable: true,
+    preferredWidgetRoles: ['time', 'category'],
+  }),
+  count: measureField(),
+  openExposure: measureField(),
+  criticalCount: measureField(),
+  trendExposure: measureField(),
 };
 
 const queryCatalog = defineQueryCatalog([

@@ -57,6 +57,7 @@ describe('resolved query metadata', () => {
       {
         dataSource: 'initiatives',
         query: 'initiatives',
+        widgetId: 'initiatives-table',
         params: {
           scoreFrom: 70,
           scoreTo: 95,
@@ -134,7 +135,5 @@ describe('resolved query metadata', () => {
     assert.match(html, /Query/);
     assert.match(html, /initiatives/);
     assert.match(html, /Growth/);
-    assert.match(html, /Formatting rules/);
-    assert.match(html, /Highlight card danger when status in \(Blocked, At Risk\)/);
   });
 });

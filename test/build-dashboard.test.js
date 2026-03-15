@@ -6,68 +6,65 @@ import {
   buildSystemPrompt,
   getValidationContext,
 } from '../src/agent/build-dashboard.js';
-import { portfolioQuarterlyOverviewSpec } from '../src/report-spec.js';
+import { executiveCommandCenterSpec } from '../src/report-spec.js';
 
 describe('starter agent grounding', () => {
   it('builds validation context from provider-backed base metadata', async () => {
     const context = await getValidationContext();
 
-    assert.ok(context.availableQueries.includes('projects'));
-    assert.ok(context.availableQueries.includes('projectsSummary'));
-    assert.ok(context.availableQueries.includes('projectsVisual'));
-    assert.ok(context.availableQueries.includes('milestonesProgressSummary'));
-    assert.ok(context.availableFields.projects.includes('name'));
-    assert.ok(context.availableFields.projectsSummary.includes('count'));
-    assert.ok(context.availableFields.projects.includes('budgetVariance'));
-    assert.equal(context.availableFields.projects.includes('_count'), false);
+    assert.ok(context.availableQueries.includes('initiatives'));
+    assert.ok(context.availableQueries.includes('initiativesSummary'));
+    assert.ok(context.availableQueries.includes('roadmapVisual'));
+    assert.ok(context.availableQueries.includes('workItemsSummary'));
+    assert.ok(context.availableQueries.includes('risksSummary'));
+    assert.ok(context.availableFields.initiatives.includes('name'));
+    assert.ok(context.availableFields.initiatives.includes('score'));
+    assert.ok(context.availableFields.initiativesSummary.includes('count'));
+    assert.equal(context.availableFields.initiatives.includes('_count'), false);
   });
 
   it('keeps the static system prompt focused on the DSL guide and dataset context', async () => {
     const systemPrompt = await buildSystemPrompt({
-      prompt:
-        'Simplify this to one KPI and one project table with owner, status, % complete, and end date.',
-      currentSpec: portfolioQuarterlyOverviewSpec,
-      messages: [{ role: 'user', content: 'Keep only project-level data.' }],
+      prompt: 'Simplify this to one KPI and one initiative table.',
+      currentSpec: executiveCommandCenterSpec,
+      messages: [{ role: 'user', content: 'Keep only executive metrics.' }],
     });
 
     assert.match(systemPrompt, /Report DSL guide:/);
     assert.match(systemPrompt, /Authoring rules/);
     assert.match(systemPrompt, /Dataset query cards:/);
-    assert.match(systemPrompt, /- tasks:/);
+    assert.match(systemPrompt, /- initiatives:/);
+    assert.match(systemPrompt, /- roadmapItems:/);
     assert.match(systemPrompt, /Field aliases:/);
-    assert.match(systemPrompt, /Prefer summary queries for totals and aggregate KPIs when they already expose the business metric you need/);
-    assert.match(systemPrompt, /use a fullVisual data source plus KPI config\.aggregation/);
+    assert.match(
+      systemPrompt,
+      /Use delivery\.mode = "paginatedList" for tables and browse-style card views/
+    );
     assert.doesNotMatch(systemPrompt, /validate_report_spec/);
     assert.match(systemPrompt, /call `apply_report_dls` with the complete report spec/i);
-    assert.doesNotMatch(systemPrompt, /Keep only project-level data\./);
     assert.doesNotMatch(systemPrompt, /Simplify this to one KPI/);
-    assert.doesNotMatch(systemPrompt, /Title: Portfolio Quarterly Overview/);
+    assert.doesNotMatch(systemPrompt, /Title: Executive Command Center/);
   });
 
   it('builds a dynamic system message for the active report', () => {
     const dynamicSystemMessage = buildDynamicSystemMessage({
-      currentSpec: portfolioQuarterlyOverviewSpec,
+      currentSpec: executiveCommandCenterSpec,
     });
 
     assert.match(dynamicSystemMessage, /currently viewing the report described below/i);
-    assert.match(dynamicSystemMessage, /Title: Portfolio Quarterly Overview/);
-    assert.match(dynamicSystemMessage, /projectsVisual/);
-    assert.match(dynamicSystemMessage, /Aggregate: sum\(budgetActual\)/);
+    assert.match(dynamicSystemMessage, /Title: Executive Command Center/);
+    assert.match(dynamicSystemMessage, /initiativesVisual/);
+    assert.match(dynamicSystemMessage, /Aggregate: sum\(spendActual\)/);
   });
 
   it('orders model messages as history, dynamic system context, then the newest user prompt', () => {
     const modelMessages = buildModelMessages({
-      prompt:
-        'Simplify this to one KPI and one project table with owner, status, % complete, and end date.',
-      currentSpec: portfolioQuarterlyOverviewSpec,
+      prompt: 'Simplify this to one KPI and one initiative table.',
+      currentSpec: executiveCommandCenterSpec,
       messages: [
-        { role: 'user', content: 'Keep only project-level data.' },
+        { role: 'user', content: 'Keep only executive metrics.' },
         { role: 'assistant', content: 'I can do that.' },
-        {
-          role: 'user',
-          content:
-            'Simplify this to one KPI and one project table with owner, status, % complete, and end date.',
-        },
+        { role: 'user', content: 'Simplify this to one KPI and one initiative table.' },
       ],
     });
 
@@ -75,11 +72,10 @@ describe('starter agent grounding', () => {
       modelMessages.map((message) => message.role),
       ['user', 'assistant', 'system', 'user']
     );
-    assert.equal(modelMessages.at(-1)?.content, modelMessages.at(-1)?.content?.trim());
     assert.equal(
       modelMessages.at(-1)?.content,
-      'Simplify this to one KPI and one project table with owner, status, % complete, and end date.'
+      'Simplify this to one KPI and one initiative table.'
     );
-    assert.match(modelMessages.at(-2)?.content ?? '', /Portfolio Quarterly Overview/);
+    assert.match(modelMessages.at(-2)?.content ?? '', /Executive Command Center/);
   });
 });

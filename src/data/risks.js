@@ -1,62 +1,222 @@
-/**
- * Generated risks (100). Ids r-1..r-100.
- * One risk per project (spread across projects); referentially consistent with projects.
- */
-
-import { getProjects } from './projects.js';
-
-const RISK_TITLE_STEMS = [
-  'Resource availability',
-  'Scope creep',
-  'Vendor delivery',
-  'Regulatory change',
-  'Technical debt',
-  'Integration delay',
-  'Security finding',
-  'Budget overrun',
+const RISKS = [
+  {
+    id: 'risk-301',
+    initiativeId: 'init-beacon',
+    initiativeName: 'Beacon ERP Unification',
+    portfolio: 'Platform',
+    program: 'Operations Core',
+    title: 'Warehouse vendor sequencing could slip integration wave',
+    category: 'Vendor',
+    severity: 'CRITICAL',
+    status: 'OPEN',
+    owner: 'Marcus Reed',
+    exposure: 92,
+    likelihood: 80,
+    impact: 95,
+    mitigationStage: 'PLAN',
+    raisedDate: '2026-02-05',
+    reviewDate: '2026-04-22',
+  },
+  {
+    id: 'risk-302',
+    initiativeId: 'init-drift',
+    initiativeName: 'Drift Customer Workspace',
+    portfolio: 'Growth',
+    program: 'Experience Modernization',
+    title: 'Identity federation approval remains unresolved',
+    category: 'Dependency',
+    severity: 'CRITICAL',
+    status: 'MITIGATING',
+    owner: 'Liam Chen',
+    exposure: 96,
+    likelihood: 88,
+    impact: 98,
+    mitigationStage: 'EXECUTE',
+    raisedDate: '2026-01-22',
+    reviewDate: '2026-04-18',
+  },
+  {
+    id: 'risk-303',
+    initiativeId: 'init-forge',
+    initiativeName: 'Forge Security Hardening Wave',
+    portfolio: 'Trust',
+    program: 'Trust Platform',
+    title: 'Verification capacity is lagging remediation throughput',
+    category: 'Capacity',
+    severity: 'HIGH',
+    status: 'OPEN',
+    owner: 'Nina Alvarez',
+    exposure: 78,
+    likelihood: 71,
+    impact: 82,
+    mitigationStage: 'PLAN',
+    raisedDate: '2026-02-19',
+    reviewDate: '2026-04-20',
+  },
+  {
+    id: 'risk-304',
+    initiativeId: 'init-aurora',
+    initiativeName: 'Aurora Commerce Expansion',
+    portfolio: 'Growth',
+    program: 'Revenue Acceleration',
+    title: 'Telemetry gaps may weaken lifecycle personalization launch',
+    category: 'Data',
+    severity: 'MEDIUM',
+    status: 'MITIGATING',
+    owner: 'Ava Patel',
+    exposure: 49,
+    likelihood: 52,
+    impact: 45,
+    mitigationStage: 'EXECUTE',
+    raisedDate: '2026-03-07',
+    reviewDate: '2026-04-28',
+  },
+  {
+    id: 'risk-305',
+    initiativeId: 'init-cinder',
+    initiativeName: 'Cinder Compliance Fabric',
+    portfolio: 'Trust',
+    program: 'Trust Platform',
+    title: 'Evidence automation needs regional policy sign-off',
+    category: 'Compliance',
+    severity: 'HIGH',
+    status: 'OPEN',
+    owner: 'Nina Alvarez',
+    exposure: 67,
+    likelihood: 58,
+    impact: 74,
+    mitigationStage: 'PLAN',
+    raisedDate: '2026-03-12',
+    reviewDate: '2026-05-02',
+  },
+  {
+    id: 'risk-306',
+    initiativeId: 'init-ember',
+    initiativeName: 'Ember Supply Chain Control Tower',
+    portfolio: 'Platform',
+    program: 'Operations Core',
+    title: 'Inventory feed contracts could compress build window',
+    category: 'Vendor',
+    severity: 'MEDIUM',
+    status: 'OPEN',
+    owner: 'Zoe Martin',
+    exposure: 44,
+    likelihood: 46,
+    impact: 42,
+    mitigationStage: 'PLAN',
+    raisedDate: '2026-03-24',
+    reviewDate: '2026-05-15',
+  },
+  {
+    id: 'risk-307',
+    initiativeId: 'init-harbor',
+    initiativeName: 'Harbor Partner Launchpad',
+    portfolio: 'Platform',
+    program: 'Experience Modernization',
+    title: 'Regional certification rules are still changing',
+    category: 'Compliance',
+    severity: 'MEDIUM',
+    status: 'MITIGATING',
+    owner: 'Marcus Reed',
+    exposure: 53,
+    likelihood: 49,
+    impact: 57,
+    mitigationStage: 'EXECUTE',
+    raisedDate: '2026-03-29',
+    reviewDate: '2026-05-19',
+  },
+  {
+    id: 'risk-308',
+    initiativeId: 'init-glacier',
+    initiativeName: 'Glacier Forecasting Studio',
+    portfolio: 'Growth',
+    program: 'Revenue Acceleration',
+    title: 'Scenario tuning may overfit current pipeline mix',
+    category: 'Analytics',
+    severity: 'LOW',
+    status: 'MONITORING',
+    owner: 'Ava Patel',
+    exposure: 22,
+    likelihood: 31,
+    impact: 19,
+    mitigationStage: 'OBSERVE',
+    raisedDate: '2026-04-02',
+    reviewDate: '2026-05-30',
+  },
+  {
+    id: 'risk-309',
+    initiativeId: 'init-beacon',
+    initiativeName: 'Beacon ERP Unification',
+    portfolio: 'Platform',
+    program: 'Operations Core',
+    title: 'Change-management readiness trails process redesign',
+    category: 'Readiness',
+    severity: 'HIGH',
+    status: 'MITIGATING',
+    owner: 'Marcus Reed',
+    exposure: 72,
+    likelihood: 63,
+    impact: 78,
+    mitigationStage: 'EXECUTE',
+    raisedDate: '2026-02-28',
+    reviewDate: '2026-04-29',
+  },
+  {
+    id: 'risk-310',
+    initiativeId: 'init-drift',
+    initiativeName: 'Drift Customer Workspace',
+    portfolio: 'Growth',
+    program: 'Experience Modernization',
+    title: 'Workspace shell may miss launch accessibility bar',
+    category: 'Quality',
+    severity: 'HIGH',
+    status: 'OPEN',
+    owner: 'Liam Chen',
+    exposure: 69,
+    likelihood: 61,
+    impact: 73,
+    mitigationStage: 'PLAN',
+    raisedDate: '2026-03-16',
+    reviewDate: '2026-04-24',
+  },
+  {
+    id: 'risk-311',
+    initiativeId: 'init-forge',
+    initiativeName: 'Forge Security Hardening Wave',
+    portfolio: 'Trust',
+    program: 'Trust Platform',
+    title: 'Legacy service owners may defer baseline enforcement',
+    category: 'Adoption',
+    severity: 'MEDIUM',
+    status: 'CLOSED',
+    owner: 'Nina Alvarez',
+    exposure: 18,
+    likelihood: 20,
+    impact: 22,
+    mitigationStage: 'DONE',
+    raisedDate: '2026-01-14',
+    reviewDate: '2026-03-27',
+  },
+  {
+    id: 'risk-312',
+    initiativeId: 'init-cinder',
+    initiativeName: 'Cinder Compliance Fabric',
+    portfolio: 'Trust',
+    program: 'Trust Platform',
+    title: 'Regional policy interpretation was misaligned early on',
+    category: 'Compliance',
+    severity: 'LOW',
+    status: 'CLOSED',
+    owner: 'Nina Alvarez',
+    exposure: 14,
+    likelihood: 18,
+    impact: 15,
+    mitigationStage: 'DONE',
+    raisedDate: '2026-01-09',
+    reviewDate: '2026-03-10',
+  },
 ];
 
-const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-const STATUSES = ['OPEN', 'MITIGATING', 'MITIGATED', 'CLOSED'];
-
-function buildDate(year, month, day) {
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-export function buildRisks() {
-  const projects = getProjects();
-  const risks = [];
-  for (let i = 1; i <= 100; i++) {
-    const projectIndex = (i - 1) % projects.length;
-    const project = projects[projectIndex];
-    const stem = RISK_TITLE_STEMS[(i - 1) % RISK_TITLE_STEMS.length];
-    const title =
-      i <= RISK_TITLE_STEMS.length ? stem : `${stem} ${Math.ceil(i / RISK_TITLE_STEMS.length)}`;
-    const status = STATUSES[i % 4];
-    const raisedMonth = 1 + (i % 12);
-    const raisedYear = 2025 + Math.floor(i / 50);
-    const raisedDate = buildDate(raisedYear, raisedMonth, 1 + (i % 20));
-    const mitigatedDate =
-      status === 'MITIGATED' || status === 'CLOSED'
-        ? buildDate(raisedYear, raisedMonth + 1, 1 + (i % 15))
-        : '';
-    risks.push({
-      id: `r-${i}`,
-      projectId: project.id,
-      projectName: project.name,
-      title,
-      severity: SEVERITIES[i % 4],
-      status,
-      owner: project.owner,
-      raisedDate,
-      mitigatedDate,
-    });
-  }
-  return risks;
-}
-
-let cached = null;
 export function getRisks() {
-  if (!cached) cached = buildRisks();
-  return cached;
+  return RISKS;
 }

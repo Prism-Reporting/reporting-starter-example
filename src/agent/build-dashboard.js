@@ -1,10 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, stepCountIs, tool, jsonSchema } from 'ai';
-import {
-  formatReportSpecForPrompt,
-  resolveReport,
-  validateReportSpec,
-} from '@reporting/core';
+import { formatReportSpecForPrompt, resolveReport, validateReportSpec } from '@reporting/core';
 import { getReportGenerationRules } from '@reporting/mcp-server/contract';
 import { createPortfolioDataProvider } from '../data-provider.js';
 import { createStarterReportingContextProvider } from '../reporting-context.js';
@@ -128,8 +124,7 @@ function buildDryRunErrors(resolvedReport) {
   return (resolvedReport?.queries ?? [])
     .filter((query) => query.limitExceeded)
     .map((query) => {
-      const message =
-        query.limitExceeded?.message ?? 'Query exceeded the supported row limit.';
+      const message = query.limitExceeded?.message ?? 'Query exceeded the supported row limit.';
       return `Widget "${query.widgetId ?? 'unknown'}" dry-run failed for dataSource "${query.dataSource}" (${query.query}): ${message}`;
     });
 }
@@ -152,10 +147,7 @@ const apply_report_dls = tool({
     if (dls == null || typeof dls !== 'object' || Array.isArray(dls)) {
       return {
         applied: false,
-        error: formatValidationError(
-          ['Missing or invalid dls: must be a report spec object.'],
-          []
-        ),
+        error: formatValidationError(['Missing or invalid dls: must be a report spec object.'], []),
       };
     }
 
@@ -164,10 +156,7 @@ const apply_report_dls = tool({
     if (!validation.valid) {
       return {
         applied: false,
-        error: formatValidationError(
-          validation.errors ?? [],
-          validation.diagnostics ?? []
-        ),
+        error: formatValidationError(validation.errors ?? [], validation.diagnostics ?? []),
       };
     }
 
@@ -183,10 +172,7 @@ const apply_report_dls = tool({
     } catch (error) {
       return {
         applied: false,
-        error: formatValidationError(
-          [error instanceof Error ? error.message : String(error)],
-          []
-        ),
+        error: formatValidationError([error instanceof Error ? error.message : String(error)], []),
       };
     }
 
@@ -197,8 +183,7 @@ const apply_report_dls = tool({
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const SYSTEM_BASE =
   'You are a helpful assistant. The user is chatting in an app that shows a live report.';
-const SYSTEM_DATASET_INTRO =
-  `This app has 10 starter reports: ${STARTER_REPORT_LABELS}. Available dataset queries (${AVAILABLE_QUERY_NAMES.length}): ${AVAILABLE_QUERIES}. Use only these query names in dataSources and filters. Every dataSource must declare delivery.mode: use "paginatedList" for tables, "fullVisual" for charts and raw-row KPI aggregation, and "summary" for pre-aggregated KPI sources.`;
+const SYSTEM_DATASET_INTRO = `This app has ${starterReports.length} starter reports: ${STARTER_REPORT_LABELS}. Available dataset queries (${AVAILABLE_QUERY_NAMES.length}): ${AVAILABLE_QUERIES}. Use only these query names in dataSources and filters. Every dataSource must declare delivery.mode: use "paginatedList" for tables and browse-style card views, "fullVisual" for charts, timelines, gantt views, and raw-row KPI aggregation, and "summary" for pre-aggregated KPI sources.`;
 
 export async function buildSystemPrompt({
   prompt: _prompt,
@@ -243,20 +228,14 @@ function toModelMessages(messages) {
   if (!Array.isArray(messages) || messages.length === 0) return [];
   return messages.map((m) => {
     const role = m.role ?? 'user';
-    const content =
-      typeof m.content === 'string' ? m.content : getMessageText(m);
+    const content = typeof m.content === 'string' ? m.content : getMessageText(m);
     return { role, content: String(content ?? '') };
   });
 }
 
-export function buildDynamicSystemMessage({
-  currentSpec = null,
-  validationErrorText = '',
-} = {}) {
+export function buildDynamicSystemMessage({ currentSpec = null, validationErrorText = '' } = {}) {
   const hasSpec =
-    currentSpec != null &&
-    typeof currentSpec === 'object' &&
-    !Array.isArray(currentSpec);
+    currentSpec != null && typeof currentSpec === 'object' && !Array.isArray(currentSpec);
   const reportSpecBlock = hasSpec ? formatReportSpecForPrompt(currentSpec) : '';
   const blocks = [];
 

@@ -31,10 +31,10 @@ describe('getLastUserPrompt', () => {
       getLastUserPrompt([
         {
           role: 'user',
-          parts: [{ type: 'text', text: 'Show projects at risk' }],
+          parts: [{ type: 'text', text: 'Show the initiative risk review' }],
         },
       ]),
-      'Show projects at risk'
+      'Show the initiative risk review'
     );
   });
 });

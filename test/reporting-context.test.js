@@ -8,11 +8,13 @@ describe('starter reporting context provider', () => {
     const context = await provider.getBaseContext();
 
     assert.equal(context.source, 'reporting-starter-example');
-    assert.ok(context.queries.some((query) => query.name === 'projects'));
-    assert.ok(context.queries.some((query) => query.name === 'projectsSummary'));
-    assert.ok(context.queries.some((query) => query.name === 'projectsVisual'));
-    assert.ok(context.queries.some((query) => query.name === 'tasksSummary'));
-    assert.ok(context.queries.find((query) => query.name === 'projects')?.fields?.includes('name'));
+    assert.ok(context.queries.some((query) => query.name === 'initiatives'));
+    assert.ok(context.queries.some((query) => query.name === 'initiativesSummary'));
+    assert.ok(context.queries.some((query) => query.name === 'roadmapVisual'));
+    assert.ok(context.queries.some((query) => query.name === 'workItemsSummary'));
+    assert.ok(
+      context.queries.find((query) => query.name === 'initiatives')?.fields?.includes('name')
+    );
   });
 
   it('returns semantic grounding for aliases, examples, and hints', async () => {
@@ -22,22 +24,20 @@ describe('starter reporting context provider', () => {
     assert.ok(Array.isArray(semantic.queryAliases));
     assert.ok(
       semantic.queryAliases.some(
-        (entry) => entry.queryName === 'projects' && entry.alias === 'project list'
+        (entry) => entry.queryName === 'initiatives' && entry.alias === 'initiative list'
       )
     );
     assert.ok(
       semantic.fieldAliases.some(
         (entry) =>
-          entry.queryName === 'projects' &&
-          entry.fieldKey === 'percentComplete' &&
+          entry.queryName === 'initiatives' &&
+          entry.fieldKey === 'completionPercent' &&
           entry.alias === '% complete'
       )
     );
+    assert.ok(semantic.examples.some((entry) => entry.title === 'Executive command center'));
     assert.ok(
-      semantic.examples.some((entry) => entry.title === 'Simple project report')
-    );
-    assert.ok(
-      semantic.clarificationHints.some((entry) => entry.hint.includes('summary queries'))
+      semantic.clarificationHints.some((entry) => entry.hint.includes('6 curated reports'))
     );
   });
 });

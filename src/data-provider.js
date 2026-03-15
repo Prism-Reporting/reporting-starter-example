@@ -10,19 +10,10 @@
 
 import { createContractEnforcedDataProvider } from '@reporting/core';
 import { getQueryCatalog } from './query-catalog.js';
-import { getProjects } from './data/projects.js';
-import { getMilestones } from './data/milestones.js';
-import { getTasks } from './data/tasks.js';
+import { getInitiatives } from './data/initiatives.js';
+import { getRoadmapItems } from './data/roadmap-items.js';
+import { getWorkItems } from './data/work-items.js';
 import { getRisks } from './data/risks.js';
-
-function withBudgetFields(project) {
-  const budgetVariance = project.budgetActual - project.budgetPlanned;
-  return {
-    ...project,
-    budgetVariance,
-    budgetStatus: budgetVariance > 0 ? 'OVER_BUDGET' : 'ON_BUDGET',
-  };
-}
 
 function matchesSearch(row, value, keys) {
   if (!value) return true;
@@ -35,69 +26,41 @@ function matchesSearch(row, value, keys) {
   );
 }
 
-function matchesFieldSearch(value, searchValue) {
-  if (!searchValue) return true;
-  const query = String(searchValue).trim().toLowerCase();
-  if (!query) return true;
-  return String(value ?? '').toLowerCase().includes(query);
-}
-
-/** Parse param as single value or comma-separated list (multiSelect sends "val1,val2"). */
 function parseMultiParam(value) {
   if (value == null || value === '') return null;
   if (Array.isArray(value)) return value.length ? value : null;
-  const s = String(value).trim();
-  if (!s) return null;
-  return s.split(',').map((v) => v.trim()).filter(Boolean);
+  const text = String(value).trim();
+  if (!text) return null;
+  return text
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
 }
 
 function matchesMultiParam(rowValue, paramValue) {
   const allowed = parseMultiParam(paramValue);
   if (!allowed || allowed.length === 0) return true;
-  const row = rowValue == null ? '' : String(rowValue);
-  return allowed.includes(row);
+  return allowed.includes(String(rowValue ?? ''));
 }
 
-function daysInMonth(year, monthIndex) {
-  return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+function matchesDateRange(value, from, to) {
+  if (!from && !to) return true;
+  if (!value) return false;
+  if (from && String(value) < String(from)) return false;
+  if (to && String(value) > String(to)) return false;
+  return true;
 }
 
-function buildDateString(year, monthIndex, day) {
-  return `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-function getBusinessQuarterRange(value) {
-  const match = String(value ?? '').match(/^(\d{4})-Q([1-4])$/);
-  if (!match) return null;
-
-  const year = Number(match[1]);
-  const quarter = Number(match[2]);
-  const starts = [
-    { yearOffset: -1, month: 11 }, // Q1 = Dec-Feb
-    { yearOffset: 0, month: 2 }, // Q2 = Mar-May
-    { yearOffset: 0, month: 5 }, // Q3 = Jun-Aug
-    { yearOffset: 0, month: 8 }, // Q4 = Sep-Nov
-  ];
-  const start = starts[quarter - 1];
-  const startYear = year + start.yearOffset;
-  const endMonth = (start.month + 2) % 12;
-  const endYear = start.month + 2 >= 12 ? startYear + 1 : startYear;
-
-  return {
-    from: buildDateString(startYear, start.month, 1),
-    to: buildDateString(endYear, endMonth, daysInMonth(endYear, endMonth)),
-  };
-}
-
-function isWithinDate(dateValue, from, to) {
-  if (!dateValue) return false;
-  if (from && String(dateValue) < String(from)) return false;
-  if (to && String(dateValue) > String(to)) return false;
+function matchesNumberRange(value, from, to) {
+  if (from == null && to == null) return true;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return false;
+  if (from != null && numeric < Number(from)) return false;
+  if (to != null && numeric > Number(to)) return false;
   return true;
 }
 
 function slicePage(rows, page, pageSize) {
-  if (!pageSize) return rows;
   const start = Math.max(0, (page - 1) * pageSize);
   return rows.slice(start, start + pageSize);
 }
@@ -110,21 +73,16 @@ function resolvePaging(execution = {}, fallbackPage = 1, fallbackPageSize = 20) 
 }
 
 function buildRowsResult(rows, totalCount = rows.length) {
-  return {
-    kind: 'rows',
-    data: rows,
-    totalCount,
-  };
+  return { kind: 'rows', data: rows, totalCount };
 }
 
 function paginateRowsWithMeta(rows, execution = {}, fallbackPage = 1, fallbackPageSize = 20) {
   const { page, pageSize } = resolvePaging(execution, fallbackPage, fallbackPageSize);
   const totalCount = rows.length;
-  const totalPages = pageSize > 0 ? Math.ceil(totalCount / pageSize) || 1 : 1;
-  const data = slicePage(rows, page, pageSize);
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize) || 1);
   return {
     kind: 'rows',
-    data,
+    data: slicePage(rows, page, pageSize),
     totalCount,
     pagination: {
       page,
@@ -147,216 +105,239 @@ function buildLimitExceededResult(totalCount, limit) {
 
 function buildFullVisualResult(rows, execution = {}) {
   const limit = Math.max(1, Number(execution.maxRows) || 1000);
-  if (rows.length > limit) {
-    return buildLimitExceededResult(rows.length, limit);
-  }
-  return buildRowsResult(rows, rows.length);
+  if (rows.length > limit) return buildLimitExceededResult(rows.length, limit);
+  return buildRowsResult(rows);
 }
 
 function roundToTwo(value) {
   return Math.round(value * 100) / 100;
 }
 
+function sumNumeric(rows, key) {
+  return roundToTwo(
+    rows.reduce((sum, row) => sum + (Number.isFinite(Number(row[key])) ? Number(row[key]) : 0), 0)
+  );
+}
+
 function averageNumeric(rows, key) {
-  const values = rows
-    .map((row) => Number(row[key]))
-    .filter((value) => Number.isFinite(value));
+  const values = rows.map((row) => Number(row[key])).filter(Number.isFinite);
   if (values.length === 0) return 0;
   return roundToTwo(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
 
-function buildTrendRows(rows, dateKey, valueKey) {
+function buildTrendRows(rows, dateKey, valueBuilder) {
   const buckets = new Map();
 
   for (const row of rows) {
     const dateValue = String(row[dateKey] ?? '');
-    const value = Number(row[valueKey]);
-    if (!dateValue || !Number.isFinite(value)) continue;
-
+    if (!dateValue) continue;
     const period = dateValue.slice(0, 7);
-    const bucket = buckets.get(period) ?? { total: 0, count: 0 };
-    bucket.total += value;
-    bucket.count += 1;
+    const bucket = buckets.get(period) ?? [];
+    bucket.push(row);
     buckets.set(period, bucket);
   }
 
   return [...buckets.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
-    .slice(-10)
-    .map(([period, bucket]) => ({
-      period,
-      trendPercentComplete: roundToTwo(bucket.total / bucket.count),
-    }));
+    .map(([period, bucketRows]) => ({ period, value: roundToTwo(valueBuilder(bucketRows)) }));
 }
 
-function buildCountSummaryRows(rows, trendRows = []) {
-  const count = rows.length;
-  const firstTrendValue = trendRows[0]?.trendPercentComplete ?? 0;
+function buildInitiativeSummaryRows(rows) {
+  const overall = {
+    period: 'overall',
+    count: rows.length,
+    spendActualTotal: sumNumeric(rows, 'spendActual'),
+    forecastValueTotal: sumNumeric(rows, 'forecastValue'),
+    avgCompletionPercent: averageNumeric(rows, 'completionPercent'),
+    avgConfidence: averageNumeric(rows, 'confidence'),
+    trendScore: averageNumeric(rows, 'score'),
+  };
+  const trendRows = buildTrendRows(rows, 'endDate', (bucketRows) => averageNumeric(bucketRows, 'score'));
+
   return [
-    { period: 'overall', count, trendPercentComplete: firstTrendValue },
-    ...trendRows.map((trend) => ({
-      period: trend.period,
-      count,
-      trendPercentComplete: trend.trendPercentComplete,
+    overall,
+    ...trendRows.map((row) => ({
+      period: row.period,
+      count: rows.length,
+      spendActualTotal: overall.spendActualTotal,
+      forecastValueTotal: overall.forecastValueTotal,
+      avgCompletionPercent: overall.avgCompletionPercent,
+      avgConfidence: overall.avgConfidence,
+      trendScore: row.value,
     })),
   ];
 }
 
-function buildAverageProgressSummaryRows(rows, dateKey) {
-  const avgPercentComplete = averageNumeric(rows, 'percentComplete');
-  const trendRows = buildTrendRows(rows, dateKey, 'percentComplete');
-  const firstTrendValue = trendRows[0]?.trendPercentComplete ?? avgPercentComplete;
+function buildWorkItemSummaryRows(rows) {
+  const overall = {
+    period: 'overall',
+    count: rows.length,
+    readyCount: rows.filter((row) => row.readiness === 'READY').length,
+    blockedPointsTotal: sumNumeric(rows, 'blockedPoints'),
+    avgCompletionPercent: averageNumeric(rows, 'completionPercent'),
+    trendPercentComplete: averageNumeric(rows, 'completionPercent'),
+  };
+  const trendRows = buildTrendRows(
+    rows,
+    'targetDate',
+    (bucketRows) => averageNumeric(bucketRows, 'completionPercent')
+  );
+
   return [
-    {
-      period: 'overall',
-      avgPercentComplete,
-      trendPercentComplete: firstTrendValue,
-    },
-    ...trendRows.map((trend) => ({
-      period: trend.period,
-      avgPercentComplete,
-      trendPercentComplete: trend.trendPercentComplete,
+    overall,
+    ...trendRows.map((row) => ({
+      period: row.period,
+      count: overall.count,
+      readyCount: overall.readyCount,
+      blockedPointsTotal: overall.blockedPointsTotal,
+      avgCompletionPercent: overall.avgCompletionPercent,
+      trendPercentComplete: row.value,
     })),
   ];
 }
 
-function withProjectDateParams(params = {}) {
-  const quarterRange = getBusinessQuarterRange(params.quarter);
-  return {
-    ...params,
-    endFrom: params.endFrom ?? quarterRange?.from,
-    endTo: params.endTo ?? quarterRange?.to,
+function buildRiskSummaryRows(rows) {
+  const openRows = rows.filter((row) => row.status !== 'CLOSED');
+  const overall = {
+    period: 'overall',
+    count: rows.length,
+    openExposure: sumNumeric(openRows, 'exposure'),
+    criticalCount: rows.filter((row) => row.severity === 'CRITICAL').length,
+    trendExposure: averageNumeric(openRows, 'exposure'),
   };
+  const trendRows = buildTrendRows(
+    rows,
+    'raisedDate',
+    (bucketRows) => averageNumeric(bucketRows.filter((row) => row.status !== 'CLOSED'), 'exposure')
+  );
+
+  return [
+    overall,
+    ...trendRows.map((row) => ({
+      period: row.period,
+      count: overall.count,
+      openExposure: overall.openExposure,
+      criticalCount: overall.criticalCount,
+      trendExposure: row.value,
+    })),
+  ];
 }
 
-function withMilestoneDateParams(params = {}) {
-  const quarterRange = getBusinessQuarterRange(params.quarter);
-  return {
-    ...params,
-    targetFrom: params.targetFrom ?? quarterRange?.from,
-    targetTo: params.targetTo ?? quarterRange?.to,
-  };
-}
-
-function filterProjects(params = {}) {
-  const effectiveParams = withProjectDateParams(params);
-
-  return getProjects().map(withBudgetFields)
-    .filter((project) => matchesMultiParam(project.status, params.status))
-    .filter((project) => matchesMultiParam(project.owner, params.owner))
-    .filter((project) => matchesMultiParam(project.timelineStatus, params.timelineStatus))
-    .filter((project) => matchesMultiParam(project.budgetStatus, params.budgetStatus))
-    .filter((project) =>
-      matchesSearch(project, params.search, ['name', 'owner', 'executiveSummary'])
+function filterInitiatives(params = {}) {
+  return getInitiatives()
+    .filter((row) => matchesMultiParam(row.portfolio, params.portfolio))
+    .filter((row) => matchesMultiParam(row.program, params.program))
+    .filter((row) => matchesMultiParam(row.owner, params.owner))
+    .filter((row) => matchesMultiParam(row.phase, params.phase))
+    .filter((row) => matchesMultiParam(row.status, params.status))
+    .filter((row) => matchesMultiParam(row.health, params.health))
+    .filter((row) =>
+      matchesSearch(row, params.search, ['name', 'sponsor', 'strategicTheme', 'summary'])
     )
-    .filter((project) => {
-      if (!effectiveParams.endFrom && !effectiveParams.endTo) return true;
-      return isWithinDate(project.endDate, effectiveParams.endFrom, effectiveParams.endTo);
-    })
-    .sort((a, b) => a.endDate.localeCompare(b.endDate));
+    .filter((row) => matchesDateRange(row.startDate, params.startFrom, params.startTo))
+    .filter((row) => matchesDateRange(row.endDate, params.endFrom, params.endTo))
+    .filter((row) => matchesNumberRange(row.score, params.scoreFrom, params.scoreTo))
+    .sort((left, right) => left.endDate.localeCompare(right.endDate));
 }
 
-function filterMilestones(params = {}) {
-  const effectiveParams = withMilestoneDateParams(params);
-
-  return getMilestones().filter((milestone) => matchesMultiParam(milestone.status, params.status))
-    .filter((milestone) => matchesMultiParam(milestone.owner, params.owner))
-    .filter((milestone) => !params.projectId || milestone.projectId === params.projectId)
-    .filter((milestone) => matchesFieldSearch(milestone.projectName, params.projectName))
-    .filter((milestone) =>
-      matchesSearch(milestone, params.search, ['projectName', 'name', 'owner', 'summary'])
+function filterRoadmapItems(params = {}) {
+  return getRoadmapItems()
+    .filter((row) => matchesMultiParam(row.portfolio, params.portfolio))
+    .filter((row) => matchesMultiParam(row.program, params.program))
+    .filter((row) => matchesMultiParam(row.initiativeId, params.initiativeId))
+    .filter((row) => matchesMultiParam(row.owner, params.owner))
+    .filter((row) => matchesMultiParam(row.workstream, params.workstream))
+    .filter((row) => matchesMultiParam(row.stage, params.stage))
+    .filter((row) => matchesMultiParam(row.status, params.status))
+    .filter((row) => matchesMultiParam(row.health, params.health))
+    .filter((row) =>
+      matchesSearch(row, params.search, ['initiativeName', 'name', 'workstream', 'narrative'])
     )
-    .filter((milestone) => {
-      if (!effectiveParams.targetFrom && !effectiveParams.targetTo) return true;
-      return isWithinDate(
-        milestone.targetDate,
-        effectiveParams.targetFrom,
-        effectiveParams.targetTo
-      );
-    })
-    .sort((a, b) => a.targetDate.localeCompare(b.targetDate));
+    .filter((row) => matchesDateRange(row.startDate, params.startFrom, params.startTo))
+    .filter((row) => matchesDateRange(row.endDate, params.endFrom, params.endTo))
+    .filter((row) =>
+      matchesNumberRange(row.dependencyRisk, params.dependencyRiskFrom, params.dependencyRiskTo)
+    )
+    .sort((left, right) => left.startDate.localeCompare(right.startDate));
 }
 
-function filterTasks(params = {}) {
-  return getTasks()
-    .filter((task) => matchesMultiParam(task.status, params.status))
-    .filter((task) => matchesMultiParam(task.owner, params.owner))
-    .filter((task) => !params.projectId || task.projectId === params.projectId)
-    .filter((task) => !params.milestoneId || task.milestoneId === params.milestoneId)
-    .filter((task) =>
-      matchesSearch(task, params.search, ['name', 'projectName', 'owner'])
-    )
-    .filter((task) => {
-      if (!params.dueFrom && !params.dueTo) return true;
-      return isWithinDate(task.dueDate, params.dueFrom, params.dueTo);
-    })
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+function filterWorkItems(params = {}) {
+  return getWorkItems()
+    .filter((row) => matchesMultiParam(row.portfolio, params.portfolio))
+    .filter((row) => matchesMultiParam(row.initiativeId, params.initiativeId))
+    .filter((row) => matchesMultiParam(row.roadmapItemId, params.roadmapItemId))
+    .filter((row) => matchesMultiParam(row.owner, params.owner))
+    .filter((row) => matchesMultiParam(row.workstream, params.workstream))
+    .filter((row) => matchesMultiParam(row.status, params.status))
+    .filter((row) => matchesMultiParam(row.readiness, params.readiness))
+    .filter((row) => matchesMultiParam(row.priority, params.priority))
+    .filter((row) => matchesSearch(row, params.search, ['initiativeName', 'name', 'owner']))
+    .filter((row) => matchesDateRange(row.targetDate, params.targetFrom, params.targetTo))
+    .sort((left, right) => left.targetDate.localeCompare(right.targetDate));
 }
 
 function filterRisks(params = {}) {
   return getRisks()
-    .filter((risk) => matchesMultiParam(risk.status, params.status))
-    .filter((risk) => matchesMultiParam(risk.owner, params.owner))
-    .filter((risk) => !params.projectId || risk.projectId === params.projectId)
-    .filter((risk) =>
-      matchesSearch(risk, params.search, ['title', 'projectName', 'owner'])
-    )
-    .filter((risk) => {
-      if (!params.raisedFrom && !params.raisedTo) return true;
-      return isWithinDate(risk.raisedDate, params.raisedFrom, params.raisedTo);
-    })
-    .sort((a, b) => a.raisedDate.localeCompare(b.raisedDate));
+    .filter((row) => matchesMultiParam(row.portfolio, params.portfolio))
+    .filter((row) => matchesMultiParam(row.program, params.program))
+    .filter((row) => matchesMultiParam(row.initiativeId, params.initiativeId))
+    .filter((row) => matchesMultiParam(row.severity, params.severity))
+    .filter((row) => matchesMultiParam(row.status, params.status))
+    .filter((row) => matchesMultiParam(row.owner, params.owner))
+    .filter((row) => matchesMultiParam(row.category, params.category))
+    .filter((row) => matchesSearch(row, params.search, ['initiativeName', 'title', 'category']))
+    .filter((row) => matchesNumberRange(row.exposure, params.exposureFrom, params.exposureTo))
+    .filter((row) => matchesDateRange(row.raisedDate, params.raisedFrom, params.raisedTo))
+    .sort((left, right) => right.exposure - left.exposure);
 }
 
 export function createPortfolioDataProvider({ page = 1, pageSize = 20 } = {}) {
   const baseProvider = {
     async runQuery({ name, params = {}, execution = undefined }) {
-      if (name === 'projects') {
+      if (name === 'initiatives') {
+        const rows = filterInitiatives(params);
         return execution?.deliveryMode === 'paginatedList'
-          ? paginateRowsWithMeta(filterProjects(params), execution, page, pageSize)
-          : buildRowsResult(filterProjects(params));
+          ? paginateRowsWithMeta(rows, execution, page, pageSize)
+          : buildRowsResult(rows);
       }
-      if (name === 'projectsVisual') {
-        return buildFullVisualResult(filterProjects(params), execution);
+      if (name === 'initiativesVisual') {
+        return buildFullVisualResult(filterInitiatives(params), execution);
       }
-      if (name === 'projectsSummary') {
-        return buildRowsResult(buildCountSummaryRows(filterProjects(params)));
+      if (name === 'initiativesSummary') {
+        return buildRowsResult(buildInitiativeSummaryRows(filterInitiatives(params)));
       }
-      if (name === 'milestones') {
+      if (name === 'roadmapItems') {
+        const rows = filterRoadmapItems(params);
         return execution?.deliveryMode === 'paginatedList'
-          ? paginateRowsWithMeta(filterMilestones(params), execution, page, pageSize)
-          : buildRowsResult(filterMilestones(params));
+          ? paginateRowsWithMeta(rows, execution, page, pageSize)
+          : buildRowsResult(rows);
       }
-      if (name === 'milestonesVisual') {
-        return buildFullVisualResult(filterMilestones(params), execution);
+      if (name === 'roadmapVisual') {
+        return buildFullVisualResult(filterRoadmapItems(params), execution);
       }
-      if (name === 'milestonesSummary') {
-        return buildRowsResult(buildCountSummaryRows(filterMilestones(params)));
-      }
-      if (name === 'milestonesProgressSummary') {
-        return buildRowsResult(buildAverageProgressSummaryRows(filterMilestones(params), 'targetDate'));
-      }
-      if (name === 'tasks') {
+      if (name === 'workItems') {
+        const rows = filterWorkItems(params);
         return execution?.deliveryMode === 'paginatedList'
-          ? paginateRowsWithMeta(filterTasks(params), execution, page, pageSize)
-          : buildRowsResult(filterTasks(params));
+          ? paginateRowsWithMeta(rows, execution, page, pageSize)
+          : buildRowsResult(rows);
       }
-      if (name === 'tasksSummary') {
-        const rows = filterTasks(params);
-        return buildRowsResult(
-          buildCountSummaryRows(
-            rows,
-            buildTrendRows(rows, 'dueDate', 'percentComplete')
-          )
-        );
+      if (name === 'workItemsVisual') {
+        return buildFullVisualResult(filterWorkItems(params), execution);
+      }
+      if (name === 'workItemsSummary') {
+        return buildRowsResult(buildWorkItemSummaryRows(filterWorkItems(params)));
       }
       if (name === 'risks') {
+        const rows = filterRisks(params);
         return execution?.deliveryMode === 'paginatedList'
-          ? paginateRowsWithMeta(filterRisks(params), execution, page, pageSize)
-          : buildRowsResult(filterRisks(params));
+          ? paginateRowsWithMeta(rows, execution, page, pageSize)
+          : buildRowsResult(rows);
+      }
+      if (name === 'risksVisual') {
+        return buildFullVisualResult(filterRisks(params), execution);
       }
       if (name === 'risksSummary') {
-        return buildRowsResult(buildCountSummaryRows(filterRisks(params)));
+        return buildRowsResult(buildRiskSummaryRows(filterRisks(params)));
       }
       return buildRowsResult([]);
     },

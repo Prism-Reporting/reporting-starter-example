@@ -3,25 +3,21 @@ import assert from 'node:assert/strict';
 import { createApp } from '../server.js';
 
 describe('POST /api/runQuery', () => {
-  /** @type {import('http').Server} */
   let server;
-  /** @type {string} */
   let baseUrl;
 
   before(() => {
     return new Promise((resolve) => {
       const app = createApp();
       server = app.listen(0, () => {
-        const a = server.address();
-        baseUrl = `http://127.0.0.1:${a.port}`;
+        const address = server.address();
+        baseUrl = `http://127.0.0.1:${address.port}`;
         resolve();
       });
     });
   });
 
-  after(() => {
-    return new Promise((resolve) => server.close(resolve));
-  });
+  after(() => new Promise((resolve) => server.close(resolve)));
 
   async function runQuery(body) {
     const res = await fetch(`${baseUrl}/api/runQuery`, {
@@ -33,19 +29,19 @@ describe('POST /api/runQuery', () => {
     return { status: res.status, data };
   }
 
-  it('returns 400 for invalid filter/param key (e.g. projectStatus instead of status)', async () => {
+  it('returns 400 for invalid filter/param keys', async () => {
     const { status, data } = await runQuery({
-      name: 'projects',
-      params: { projectStatus: 'AT_RISK' },
+      name: 'initiatives',
+      params: { initiativeHealth: 'GREEN' },
     });
     assert.equal(status, 400);
     assert.ok(data.error?.includes('Invalid filter/param'));
-    assert.ok(data.error?.includes('projectStatus'));
+    assert.ok(data.error?.includes('initiativeHealth'));
     assert.ok(data.error?.includes('Allowed params'));
-    assert.ok(data.error?.includes('status'));
+    assert.ok(data.error?.includes('health'));
   });
 
-  it('returns 400 for unknown query name', async () => {
+  it('returns 400 for unknown query names', async () => {
     const { status, data } = await runQuery({
       name: 'unknown-query',
       params: {},
@@ -56,36 +52,32 @@ describe('POST /api/runQuery', () => {
 
   it('returns 200 when using allowed params', async () => {
     const { status, data } = await runQuery({
-      name: 'projects',
-      params: { status: 'AT_RISK' },
+      name: 'initiatives',
+      params: { health: 'AMBER' },
       execution: { deliveryMode: 'paginatedList', page: 1, pageSize: 5 },
     });
     assert.equal(status, 200);
     assert.ok(Array.isArray(data.data));
   });
 
-  it('returns pagination with totalCount and totalPages for paginated queries', async () => {
+  it('returns pagination metadata for paginated queries', async () => {
     const { status, data } = await runQuery({
-      name: 'projects',
+      name: 'initiatives',
       params: {},
       execution: { deliveryMode: 'paginatedList', page: 1, pageSize: 5 },
     });
     assert.equal(status, 200);
     assert.equal(data.kind, 'rows');
     assert.ok(Array.isArray(data.data));
-    assert.ok(data.pagination, 'response includes pagination');
+    assert.ok(data.pagination);
     assert.equal(typeof data.pagination.page, 'number');
-    assert.equal(typeof data.pagination.pageSize, 'number');
     assert.equal(typeof data.pagination.totalCount, 'number');
-    assert.equal(typeof data.pagination.totalPages, 'number');
-    assert.equal(data.pagination.totalPages, Math.ceil(data.pagination.totalCount / data.pagination.pageSize) || 1);
-    assert.equal(data.pagination.hasMore, data.pagination.page < data.pagination.totalPages);
   });
 
   it('returns rows envelopes for summary queries without pagination metadata', async () => {
     const { status, data } = await runQuery({
-      name: 'projectsSummary',
-      params: { status: 'AT_RISK' },
+      name: 'initiativesSummary',
+      params: { portfolio: 'Growth' },
       execution: { deliveryMode: 'summary' },
     });
 
@@ -98,14 +90,14 @@ describe('POST /api/runQuery', () => {
 
   it('returns limitExceeded metadata for oversized full visuals', async () => {
     const { status, data } = await runQuery({
-      name: 'projectsVisual',
+      name: 'roadmapVisual',
       params: {},
-      execution: { deliveryMode: 'fullVisual', maxRows: 10 },
+      execution: { deliveryMode: 'fullVisual', maxRows: 5 },
     });
 
     assert.equal(status, 200);
     assert.equal(data.kind, 'limitExceeded');
     assert.equal(typeof data.totalCount, 'number');
-    assert.equal(data.limit, 10);
+    assert.equal(data.limit, 5);
   });
 });

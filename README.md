@@ -2,23 +2,23 @@
 
 **Connect your data and generate reports from prompts.** This is a **starter example** for wiring a simple dataset to the reporting platform: define queries, implement the data layer, and optionally add lightweight grounding—no premium features, OSS only.
 
-The app uses a **portfolio** (projects and milestones) as the **example dataset**. You can replace it by editing the query catalog, the data provider, and optionally the reporting context—see [Connecting your own dataset](#connecting-your-own-dataset).
+The app uses a **portfolio and program delivery** dataset as the **example domain**. It includes initiatives, roadmap items, work items, and risks so the starter can showcase timelines, signal maps, advanced tables, and executive narrative views. You can replace it by editing the query catalog, the data provider, and optionally the reporting context—see [Connecting your own dataset](#connecting-your-own-dataset).
 
 Built on [@reporting/core](https://github.com/Prism-Reporting/reporting) and [@reporting/react-ui](https://github.com/Prism-Reporting/reporting). It demonstrates prompt-to-spec flow with a local reporting context provider, a local query catalog, and server-side validation plus dry-run execution.
 
 ## Why this example exists
 
 - No external credentials are required.
-- The business vocabulary is simple: projects, milestones, owners, budgets, timelines, and risk.
+- The business vocabulary is still approachable, but rich enough to demonstrate most of the reporting DSL surface.
 - It is the recommended fallback example when explaining the reporting platform to new users.
 
 ## Scenario
 
 Northstar Delivery Group is running several initiatives in parallel. An executive opens the app and asks questions like:
 
-- `show projects at risk in 2026-Q2`
-- `milestones grouped by project for Ava Patel`
-- `portfolio overview for the quarter with blocked work`
+- `show me the delivery timeline for Operations Core`
+- `compare initiative value against spend and confidence`
+- `review critical risks and blocked readiness work`
 
 The app responds with a `ReportSpec` grounded in the published query catalog, then renders the result with the shared reporting UI.
 
@@ -40,7 +40,7 @@ To connect your own dataset, implement or replace the logic in `src/data-provide
 
 ## Queries
 
-The mocked data provider publishes project, milestone, task, and risk queries, including summary and visual variants where needed. All query execution goes through `POST /api/runQuery`.
+The mocked data provider publishes initiative, roadmap, work-item, and risk queries, including summary and visual variants where needed. All query execution goes through `POST /api/runQuery`.
 
 ## Prompt-driven report generation
 

@@ -1,213 +1,274 @@
 import { defineQueryCatalog } from '@reporting/core';
 
-const commonProjectFieldShape = {
+const initiativeFieldShape = {
   id: { type: 'string' },
+  portfolio: { type: 'string' },
+  program: { type: 'string' },
   name: { type: 'string' },
   owner: { type: 'string' },
+  sponsor: { type: 'string' },
+  phase: { type: 'string' },
   status: { type: 'string' },
-  quarter: { type: 'string' },
-  percentComplete: { type: 'number' },
-  budgetPlanned: { type: 'number' },
-  budgetActual: { type: 'number' },
-  budgetVariance: { type: 'number' },
-  budgetStatus: { type: 'string' },
-  timelineStatus: { type: 'string' },
+  health: { type: 'string' },
+  spendPlanned: { type: 'number' },
+  spendActual: { type: 'number' },
+  forecastValue: { type: 'number' },
+  confidence: { type: 'number' },
+  score: { type: 'number' },
+  completionPercent: { type: 'number' },
+  strategicTheme: { type: 'string' },
   startDate: { type: 'date' },
   endDate: { type: 'date' },
-  executiveSummary: { type: 'string' },
-};
-
-const commonProjectParamShape = {
-  quarter: { type: 'string', optional: true },
-  endFrom: { type: 'date', optional: true },
-  endTo: { type: 'date', optional: true },
-  status: { type: 'string', optional: true },
-  owner: { type: 'string', optional: true },
-  timelineStatus: { type: 'string', optional: true },
-  budgetStatus: { type: 'string', optional: true },
-  search: { type: 'string', optional: true },
-};
-
-const commonMilestoneFieldShape = {
-  id: { type: 'string' },
-  projectId: { type: 'string' },
-  projectName: { type: 'string' },
-  name: { type: 'string' },
-  owner: { type: 'string' },
-  status: { type: 'string' },
-  quarter: { type: 'string' },
-  targetDate: { type: 'date' },
-  completedDate: { type: 'string' },
-  percentComplete: { type: 'number' },
   summary: { type: 'string' },
 };
 
-const commonMilestoneParamShape = {
-  quarter: { type: 'string', optional: true },
-  status: { type: 'string', optional: true },
+const initiativeParamShape = {
+  portfolio: { type: 'string', optional: true },
+  program: { type: 'string', optional: true },
   owner: { type: 'string', optional: true },
-  projectId: { type: 'string', optional: true },
-  projectName: { type: 'string', optional: true },
+  phase: { type: 'string', optional: true },
+  status: { type: 'string', optional: true },
+  health: { type: 'string', optional: true },
+  search: { type: 'string', optional: true },
+  startFrom: { type: 'date', optional: true },
+  startTo: { type: 'date', optional: true },
+  endFrom: { type: 'date', optional: true },
+  endTo: { type: 'date', optional: true },
+  scoreFrom: { type: 'number', optional: true },
+  scoreTo: { type: 'number', optional: true },
+};
+
+const roadmapFieldShape = {
+  id: { type: 'string' },
+  initiativeId: { type: 'string' },
+  initiativeName: { type: 'string' },
+  portfolio: { type: 'string' },
+  program: { type: 'string' },
+  workstream: { type: 'string' },
+  stage: { type: 'string' },
+  name: { type: 'string' },
+  owner: { type: 'string' },
+  status: { type: 'string' },
+  health: { type: 'string' },
+  completionPercent: { type: 'number' },
+  dependencyRisk: { type: 'number' },
+  startDate: { type: 'date' },
+  endDate: { type: 'date' },
+  milestoneDate: { type: 'date' },
+  narrative: { type: 'string' },
+};
+
+const roadmapParamShape = {
+  portfolio: { type: 'string', optional: true },
+  program: { type: 'string', optional: true },
+  initiativeId: { type: 'string', optional: true },
+  owner: { type: 'string', optional: true },
+  workstream: { type: 'string', optional: true },
+  stage: { type: 'string', optional: true },
+  status: { type: 'string', optional: true },
+  health: { type: 'string', optional: true },
+  search: { type: 'string', optional: true },
+  startFrom: { type: 'date', optional: true },
+  startTo: { type: 'date', optional: true },
+  endFrom: { type: 'date', optional: true },
+  endTo: { type: 'date', optional: true },
+  dependencyRiskFrom: { type: 'number', optional: true },
+  dependencyRiskTo: { type: 'number', optional: true },
+};
+
+const workItemFieldShape = {
+  id: { type: 'string' },
+  initiativeId: { type: 'string' },
+  initiativeName: { type: 'string' },
+  roadmapItemId: { type: 'string' },
+  portfolio: { type: 'string' },
+  workstream: { type: 'string' },
+  name: { type: 'string' },
+  owner: { type: 'string' },
+  status: { type: 'string' },
+  readiness: { type: 'string' },
+  priority: { type: 'string' },
+  effortPoints: { type: 'number' },
+  blockedPoints: { type: 'number' },
+  completionPercent: { type: 'number' },
+  targetDate: { type: 'date' },
+  completedDate: { type: 'string' },
+};
+
+const workItemParamShape = {
+  portfolio: { type: 'string', optional: true },
+  initiativeId: { type: 'string', optional: true },
+  roadmapItemId: { type: 'string', optional: true },
+  owner: { type: 'string', optional: true },
+  workstream: { type: 'string', optional: true },
+  status: { type: 'string', optional: true },
+  readiness: { type: 'string', optional: true },
+  priority: { type: 'string', optional: true },
   search: { type: 'string', optional: true },
   targetFrom: { type: 'date', optional: true },
   targetTo: { type: 'date', optional: true },
 };
 
-const commonTaskFieldShape = {
+const riskFieldShape = {
   id: { type: 'string' },
-  name: { type: 'string' },
-  milestoneId: { type: 'string' },
-  projectId: { type: 'string' },
-  projectName: { type: 'string' },
-  status: { type: 'string' },
-  owner: { type: 'string' },
-  dueDate: { type: 'date' },
-  percentComplete: { type: 'number' },
-  priority: { type: 'string' },
-};
-
-const commonTaskParamShape = {
-  status: { type: 'string', optional: true },
-  owner: { type: 'string', optional: true },
-  projectId: { type: 'string', optional: true },
-  milestoneId: { type: 'string', optional: true },
-  search: { type: 'string', optional: true },
-  dueFrom: { type: 'date', optional: true },
-  dueTo: { type: 'date', optional: true },
-};
-
-const commonRiskFieldShape = {
-  id: { type: 'string' },
-  projectId: { type: 'string' },
-  projectName: { type: 'string' },
+  initiativeId: { type: 'string' },
+  initiativeName: { type: 'string' },
+  portfolio: { type: 'string' },
+  program: { type: 'string' },
   title: { type: 'string' },
+  category: { type: 'string' },
   severity: { type: 'string' },
   status: { type: 'string' },
   owner: { type: 'string' },
+  exposure: { type: 'number' },
+  likelihood: { type: 'number' },
+  impact: { type: 'number' },
+  mitigationStage: { type: 'string' },
   raisedDate: { type: 'date' },
-  mitigatedDate: { type: 'string' },
+  reviewDate: { type: 'date' },
 };
 
-const commonRiskParamShape = {
+const riskParamShape = {
+  portfolio: { type: 'string', optional: true },
+  program: { type: 'string', optional: true },
+  initiativeId: { type: 'string', optional: true },
+  severity: { type: 'string', optional: true },
   status: { type: 'string', optional: true },
   owner: { type: 'string', optional: true },
-  projectId: { type: 'string', optional: true },
+  category: { type: 'string', optional: true },
   search: { type: 'string', optional: true },
+  exposureFrom: { type: 'number', optional: true },
+  exposureTo: { type: 'number', optional: true },
   raisedFrom: { type: 'date', optional: true },
   raisedTo: { type: 'date', optional: true },
 };
 
-const countSummaryFieldShape = {
+const initiativeSummaryFieldShape = {
   period: { type: 'string' },
   count: { type: 'number' },
+  spendActualTotal: { type: 'number' },
+  forecastValueTotal: { type: 'number' },
+  avgCompletionPercent: { type: 'number' },
+  avgConfidence: { type: 'number' },
+  trendScore: { type: 'number' },
+};
+
+const workItemSummaryFieldShape = {
+  period: { type: 'string' },
+  count: { type: 'number' },
+  readyCount: { type: 'number' },
+  blockedPointsTotal: { type: 'number' },
+  avgCompletionPercent: { type: 'number' },
   trendPercentComplete: { type: 'number' },
 };
 
-const averageProgressSummaryFieldShape = {
+const riskSummaryFieldShape = {
   period: { type: 'string' },
-  avgPercentComplete: { type: 'number' },
-  trendPercentComplete: { type: 'number' },
+  count: { type: 'number' },
+  openExposure: { type: 'number' },
+  criticalCount: { type: 'number' },
+  trendExposure: { type: 'number' },
 };
 
 const queryCatalog = defineQueryCatalog([
   {
-    name: 'projects',
+    name: 'initiatives',
     description:
-      'List portfolio projects for executive reporting. Returns one row per project with status, owner, quarter, percentComplete, budgetPlanned, budgetActual, budgetVariance, budgetStatus, timelineStatus, startDate, endDate, and executiveSummary.',
-    fieldShape: commonProjectFieldShape,
-    paramShape: commonProjectParamShape,
+      'Browse strategic initiatives across portfolios and programs. Returns one row per initiative with spend, confidence, score, schedule window, health, and executive summary fields.',
+    fieldShape: initiativeFieldShape,
+    paramShape: initiativeParamShape,
     notes:
-      'Use this query for portfolio-level tables. Filter projects by endDate. In report specs set delivery.mode = "paginatedList" for table/list use. The portfolio example uses a business quarter calendar where 2026-Q2 means 2026-03-01 through 2026-05-31. Prefer explicit endFrom/endTo params in generated specs; quarter can be used as a shorthand alias.',
+      'Use for executive tables and card views. Set delivery.mode = "paginatedList" for browsing. Use scoreFrom/scoreTo for portfolio signal filtering and explicit start/end date params for schedule windows.',
   },
   {
-    name: 'projectsVisual',
+    name: 'initiativesVisual',
     description:
-      'Full filtered project dataset for charts and other non-table visualizations. Returns the same project-level rows as projects without pagination.',
-    fieldShape: commonProjectFieldShape,
-    paramShape: commonProjectParamShape,
+      'Full initiative dataset for charts, timeline-style comparisons, and raw KPI aggregation without pagination.',
+    fieldShape: initiativeFieldShape,
+    paramShape: initiativeParamShape,
     notes:
-      'Use this query for charts and KPI widgets that aggregate raw project rows in the report DSL. It provides the full filtered project dataset without table pagination. In report specs set delivery.mode = "fullVisual".',
+      'Use delivery.mode = "fullVisual" for charts and raw KPI aggregation. Prefer this over initiatives when the DSL needs all filtered rows at once.',
   },
   {
-    name: 'projectsSummary',
+    name: 'initiativesSummary',
     description:
-      'Project KPI summary. Returns summary rows with count and optional trend metadata for filtered projects.',
-    fieldShape: countSummaryFieldShape,
-    paramShape: commonProjectParamShape,
+      'Initiative KPI summary rows with totals for spend/value and overall portfolio health metrics plus trend data.',
+    fieldShape: initiativeSummaryFieldShape,
+    paramShape: initiativeParamShape,
     notes:
-      'Use this query for project KPI widgets that should stay in sync with project filters. In report specs set delivery.mode = "summary". For the business total, use KPI valueKey "count"; reserved valueKey "_count" means the number of summary rows, not the business count field.',
+      'Use delivery.mode = "summary" for initiative KPI widgets. Use valueKey "count", "spendActualTotal", "forecastValueTotal", "avgCompletionPercent", or "avgConfidence" instead of relying on synthetic row counts.',
   },
   {
-    name: 'milestones',
+    name: 'roadmapItems',
     description:
-      'List project milestones for executive reporting. Returns one row per milestone with projectName, owner, status, quarter, targetDate, completedDate, percentComplete, and summary.',
-    fieldShape: commonMilestoneFieldShape,
-    paramShape: commonMilestoneParamShape,
+      'Browse roadmap items tied to initiatives, with workstream, stage, health, dependency risk, milestone date, and schedule window fields.',
+    fieldShape: roadmapFieldShape,
+    paramShape: roadmapParamShape,
     notes:
-      'Use groupByKey: projectName when the user asks for milestones grouped by project. completedDate is blank for in-flight milestones. Filter milestones by targetDate. In report specs set delivery.mode = "paginatedList" for milestone tables. The portfolio example uses a business quarter calendar where 2026-Q2 means 2026-03-01 through 2026-05-31. Prefer explicit targetFrom/targetTo params in generated specs; quarter can be used as a shorthand alias.',
+      'Use for detailed roadmap tables and grouped delivery views with delivery.mode = "paginatedList". Group by initiativeName or workstream when the user wants nested schedule context.',
   },
   {
-    name: 'milestonesVisual',
+    name: 'roadmapVisual',
     description:
-      'Full filtered milestone dataset for charts and other non-table visualizations. Returns the same milestone rows as milestones without pagination.',
-    fieldShape: commonMilestoneFieldShape,
-    paramShape: commonMilestoneParamShape,
+      'Full roadmap dataset for timelineView, ganttChart, and schedule-oriented visualizations.',
+    fieldShape: roadmapFieldShape,
+    paramShape: roadmapParamShape,
     notes:
-      'Use this query for milestone charts and KPI widgets that aggregate raw milestone rows in the report DSL. It provides the full filtered result set without table pagination. In report specs set delivery.mode = "fullVisual".',
+      'Use delivery.mode = "fullVisual" for timelineView, ganttChart, and charts that compare roadmap timing or dependency risk across all matching rows.',
   },
   {
-    name: 'milestonesSummary',
+    name: 'workItems',
     description:
-      'Milestone KPI summary. Returns summary rows with count and optional trend metadata for filtered milestones.',
-    fieldShape: countSummaryFieldShape,
-    paramShape: commonMilestoneParamShape,
+      'Browse operational work items with readiness, priority, effort points, blocked points, completion, and due/completed dates.',
+    fieldShape: workItemFieldShape,
+    paramShape: workItemParamShape,
     notes:
-      'Use this query for milestone count KPIs when milestone tables are paginated. In report specs set delivery.mode = "summary".',
+      'Use delivery.mode = "paginatedList" for operations tables. Good for drill-down tables and readiness tracking.',
   },
   {
-    name: 'milestonesProgressSummary',
+    name: 'workItemsVisual',
     description:
-      'Milestone progress KPI summary. Returns an overall average percent complete plus a monthly trend for filtered milestones.',
-    fieldShape: averageProgressSummaryFieldShape,
-    paramShape: commonMilestoneParamShape,
+      'Full work item dataset for readiness/funnel charts and raw KPI aggregations.',
+    fieldShape: workItemFieldShape,
+    paramShape: workItemParamShape,
     notes:
-      'Use this query for milestone progress KPIs with sparkline trends. In report specs set delivery.mode = "summary".',
+      'Use delivery.mode = "fullVisual" for pie, funnel, and raw completion/blocker calculations across all filtered work items.',
   },
   {
-    name: 'tasks',
+    name: 'workItemsSummary',
     description:
-      'List delivery tasks linked to milestones and projects. Returns one row per task with id, name, milestoneId, projectId, projectName, status, owner, dueDate, percentComplete, and priority.',
-    fieldShape: commonTaskFieldShape,
-    paramShape: commonTaskParamShape,
+      'Work item summary rows with count, ready count, blocked points total, average completion, and completion trend.',
+    fieldShape: workItemSummaryFieldShape,
+    paramShape: workItemParamShape,
     notes:
-      'Use for task lists and delivery tracking. Filter by dueDate with dueFrom/dueTo. In report specs set delivery.mode = "paginatedList" for tables. Tasks are linked to milestones (milestoneId) and projects (projectId, projectName).',
-  },
-  {
-    name: 'tasksSummary',
-    description:
-      'Task KPI summary. Returns summary rows with count plus a monthly percent-complete trend for filtered tasks.',
-    fieldShape: countSummaryFieldShape,
-    paramShape: commonTaskParamShape,
-    notes:
-      'Use this query for task KPI widgets when task tables are paginated. In report specs set delivery.mode = "summary".',
+      'Use delivery.mode = "summary" for operational KPIs that should stay aligned with filtered work item sets.',
   },
   {
     name: 'risks',
     description:
-      'List project risks. Returns one row per risk with id, projectId, projectName, title, severity, status, owner, raisedDate, and mitigatedDate.',
-    fieldShape: commonRiskFieldShape,
-    paramShape: commonRiskParamShape,
+      'Browse initiative risks with severity, exposure, mitigation stage, and review cadence.',
+    fieldShape: riskFieldShape,
+    paramShape: riskParamShape,
     notes:
-      'Use for risk registers and project risk views. Filter by raisedDate with raisedFrom/raisedTo. In report specs set delivery.mode = "paginatedList" for tables. mitigatedDate is blank for open or in-progress risks.',
+      'Use delivery.mode = "paginatedList" for risk registers and investigation tables.',
+  },
+  {
+    name: 'risksVisual',
+    description:
+      'Full risk dataset for stacked, scatter, and categorical risk visualizations.',
+    fieldShape: riskFieldShape,
+    paramShape: riskParamShape,
+    notes:
+      'Use delivery.mode = "fullVisual" for charts that need the complete risk set or scatter-style correlation views.',
   },
   {
     name: 'risksSummary',
     description:
-      'Risk KPI summary. Returns summary rows with count and optional trend metadata for filtered risks.',
-    fieldShape: countSummaryFieldShape,
-    paramShape: commonRiskParamShape,
+      'Risk KPI summary rows with total count, open exposure, critical count, and exposure trend.',
+    fieldShape: riskSummaryFieldShape,
+    paramShape: riskParamShape,
     notes:
-      'Use this query for risk KPIs when risk tables are paginated. In report specs set delivery.mode = "summary".',
+      'Use delivery.mode = "summary" for risk KPIs. openExposure reflects the exposure total for non-closed risks only.',
   },
 ]);
 

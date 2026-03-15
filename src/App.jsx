@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { ReportRenderer, defaultRegistry } from '@reporting/react-ui';
-import { showcaseComplexSpec, starterReports } from './report-spec.js';
+import { executiveCommandCenterSpec, starterReports } from './report-spec.js';
 
 function createDataProvider() {
   return {
@@ -27,7 +27,7 @@ function useStableChatId() {
 
 export default function App() {
   const dataProvider = useMemo(() => createDataProvider(), []);
-  const [currentSpec, setCurrentSpec] = useState(showcaseComplexSpec);
+  const [currentSpec, setCurrentSpec] = useState(executiveCommandCenterSpec);
   const [reportViewMode, setReportViewMode] = useState('rendered');
   const [input, setInput] = useState('');
   const [streamError, setStreamError] = useState(null);
@@ -102,12 +102,13 @@ export default function App() {
         <div className="portfolio-app-header-inner gap-4">
           <div>
             <h1 className="m-0 text-[22px] font-semibold tracking-tight text-slate-950">
-              Portfolio Reporting Example
+              Program Reporting Showcase
             </h1>
             <p className="mt-1.5 text-sm text-slate-600">
-              Mocked quarterly portfolio data for an executive team reviewing delivery health,
-              milestones, budget, and risk. Use this starter to connect your own dataset via the
-              query catalog and data provider.
+              A richer portfolio and program dataset showcasing modern reporting DSL patterns:
+              timelines, signal maps, advanced tables, risk reviews, and narrative boards. Use it
+              as a starter for connecting your own dataset through the query catalog and data
+              provider.
             </p>
           </div>
 

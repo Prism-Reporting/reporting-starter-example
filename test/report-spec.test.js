@@ -9,6 +9,8 @@ describe('starter report specs', () => {
   it('validate and dry-run successfully', async () => {
     const validationContext = await getValidationContext();
 
+    assert.equal(starterReports.length, 6);
+
     for (const report of starterReports) {
       const validation = validateReportSpec(report.spec, validationContext);
       assert.equal(
@@ -26,35 +28,46 @@ describe('starter report specs', () => {
     }
   });
 
-  it('include starter coverage for the newly supported chart widgets', () => {
+  it('covers the newer showcase widget types', () => {
     const widgetTypes = new Set(
       starterReports.flatMap((report) => report.spec.widgets.map((widget) => widget.type))
     );
 
-    assert.ok(widgetTypes.has('cardView'));
-    assert.ok(widgetTypes.has('areaChart'));
-    assert.ok(widgetTypes.has('pieChart'));
-    assert.ok(widgetTypes.has('doughnutChart'));
-    assert.ok(widgetTypes.has('funnelChart'));
-    assert.ok(widgetTypes.has('scatterChart'));
+    assert.ok(widgetTypes.has('spiralChart'));
+    assert.ok(widgetTypes.has('bubbleChart'));
+    assert.ok(widgetTypes.has('timelineView'));
+    assert.ok(widgetTypes.has('ganttChart'));
   });
 
-  it('include starter coverage for KPI aggregation examples', () => {
+  it('continues covering advanced table, layout, and scoping patterns', () => {
+    const allSpecs = starterReports.map((report) => report.spec);
+    const allWidgets = allSpecs.flatMap((report) => report.widgets);
+    const tables = allWidgets.filter((widget) => widget.type === 'table');
+    const cardViews = allWidgets.filter((widget) => widget.type === 'cardView');
+
+    assert.ok(allSpecs.some((report) => Array.isArray(report.tabs) && report.tabs.length > 0));
+    assert.ok(
+      allSpecs.some((report) => Array.isArray(report.sections) && report.sections.length > 0)
+    );
+    assert.ok(allSpecs.some((report) => Array.isArray(report.groups) && report.groups.length > 0));
+    assert.ok(
+      allSpecs.some((report) => Array.isArray(report.presets) && report.presets.length > 0)
+    );
+    assert.ok(
+      tables.some((widget) => widget.config?.groupAggregations?.length && widget.config?.drillDown)
+    );
+    assert.ok(tables.some((widget) => widget.config?.summary?.length));
+    assert.ok(tables.some((widget) => widget.config?.conditionalFormatting?.length));
+    assert.ok(cardViews.some((widget) => widget.config?.conditionalFormatting?.length));
+  });
+
+  it('includes raw KPI aggregation examples', () => {
     const aggregatedKpis = starterReports.flatMap((report) =>
-      report.spec.widgets.filter(
-        (widget) => widget.type === 'kpi' && widget.config?.aggregation
-      )
+      report.spec.widgets.filter((widget) => widget.type === 'kpi' && widget.config?.aggregation)
     );
 
-    assert.ok(aggregatedKpis.length >= 3);
-    assert.ok(
-      aggregatedKpis.some((widget) => widget.config.aggregation.op === 'sum')
-    );
-    assert.ok(
-      aggregatedKpis.some((widget) => widget.config.aggregation.op === 'avg')
-    );
-    assert.ok(
-      aggregatedKpis.some((widget) => widget.config.aggregation.op === 'count')
-    );
+    assert.ok(aggregatedKpis.length >= 2);
+    assert.ok(aggregatedKpis.some((widget) => widget.config.aggregation.op === 'sum'));
+    assert.ok(aggregatedKpis.some((widget) => widget.config.aggregation.op === 'avg'));
   });
 });

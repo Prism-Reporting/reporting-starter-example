@@ -184,6 +184,13 @@ const DEFAULT_MODEL = 'gpt-4o-mini';
 const SYSTEM_BASE =
   'You are a helpful assistant. The user is chatting in an app that shows a live report.';
 const SYSTEM_DATASET_INTRO = `This app has ${starterReports.length} starter reports: ${STARTER_REPORT_LABELS}. Available dataset queries (${AVAILABLE_QUERY_NAMES.length}): ${AVAILABLE_QUERIES}. Use only these query names in dataSources and filters. Every dataSource must declare delivery.mode: use "paginatedList" for tables and browse-style card views, "fullVisual" for charts, timelines, gantt views, and raw-row KPI aggregation, and "summary" for pre-aggregated KPI sources.`;
+const SYSTEM_DSL_CAPABILITY_NOTES = `Important DSL capability notes:
+- Conditional formatting is supported in the Report DSL.
+- Table widgets support config.conditionalFormatting for row highlighting via target { type: "row" } and cell highlighting via target { type: "cell", columnKey }.
+- Card views support config.conditionalFormatting via target { type: "card" }.
+- Supported condition operators include eq, neq, gt, gte, lt, lte, between, and in.
+- Supported highlight tones are danger, warning, success, info, and neutral.
+- Do not claim conditional formatting is unsupported when the user asks for row, cell, or card highlighting.`;
 
 export async function buildSystemPrompt({
   prompt: _prompt,
@@ -210,6 +217,8 @@ export async function buildSystemPrompt({
   return `${SYSTEM_BASE}
 
 ${SYSTEM_DATASET_INTRO}
+
+${SYSTEM_DSL_CAPABILITY_NOTES}
 
 The full Report DSL authoring guide and the full dataset context are included below. Use only canonical query names, params, and field keys from that context, even when the user speaks in aliases or business language.
 

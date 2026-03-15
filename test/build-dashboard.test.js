@@ -40,6 +40,9 @@ describe('starter agent grounding', () => {
       systemPrompt,
       /Use delivery\.mode = "paginatedList" for tables and browse-style card views/
     );
+    assert.match(systemPrompt, /Conditional formatting is supported in the Report DSL/);
+    assert.match(systemPrompt, /Table widgets support config\.conditionalFormatting/);
+    assert.match(systemPrompt, /Do not claim conditional formatting is unsupported/);
     assert.doesNotMatch(systemPrompt, /validate_report_spec/);
     assert.match(systemPrompt, /call `apply_report_dls` with the complete report spec/i);
     assert.doesNotMatch(systemPrompt, /Simplify this to one KPI/);

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveReport, validateReportSpec } from '@reporting/core';
+import { resolveReport, validateReportSpec } from '@prism-reporting/core';
 import { createPortfolioDataProvider } from '../src/data-provider.js';
 import { starterReports } from '../src/report-spec.js';
 import { getValidationContext } from '../src/agent/build-dashboard.js';

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '@ai-sdk/react';
-import { ReportRenderer, defaultRegistry } from '@reporting/react-ui';
+import { ReportRenderer, defaultRegistry } from '@prism-reporting/react-ui';
 import { executiveCommandCenterSpec, starterReports } from './report-spec.js';
 
 const TOOL_LABELS = {

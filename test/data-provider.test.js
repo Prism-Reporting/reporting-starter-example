@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createContractEnforcedDataProvider } from '@reporting/core';
+import { createContractEnforcedDataProvider } from '@prism-reporting/core';
 import { createPortfolioDataProvider } from '../src/data-provider.js';
 import { getQueryCatalog } from '../src/query-catalog.js';
 import { getInitiatives } from '../src/data/initiatives.js';

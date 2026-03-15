@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { resolveReport } from '@reporting/core';
-import { KpiView, ResolvedQueryInspector } from '@reporting/react-ui';
+import { resolveReport } from '@prism-reporting/core';
+import { KpiView, ResolvedQueryInspector } from '@prism-reporting/react-ui';
 
 describe('resolved query metadata', () => {
   it('captures merged query params from data source defaults and active filters', async () => {

@@ -1,4 +1,4 @@
-import { defineQueryCatalog } from '@reporting/core';
+import { defineQueryCatalog } from '@prism-reporting/core';
 
 function field(type, semantic = {}) {
   return {

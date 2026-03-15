@@ -3,7 +3,7 @@
  *
  * Defines what the agent and MCP know about the dataset beyond raw query execution.
  *
- * Contract (aligned with reporting MCP / @reporting/core when used):
+ * Contract (aligned with reporting MCP / @prism-reporting/core when used):
  *
  * Required:
  * - getBaseContext(input?) -> Promise<BaseContext>

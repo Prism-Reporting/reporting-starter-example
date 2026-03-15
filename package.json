@@ -1,5 +1,5 @@
 {
-  "name": "reporting-portfolio-example",
+  "name": "prism-reporting-starter-example",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -20,10 +20,10 @@
   "dependencies": {
     "@ai-sdk/openai": "^2.0.0",
     "@ai-sdk/react": "^1.0.0",
-    "@reporting/agent-kit": "file:../reporting/packages/agent-kit",
-    "@reporting/core": "file:../reporting/packages/core",
-    "@reporting/mcp-server": "file:../reporting/packages/mcp-server",
-    "@reporting/react-ui": "file:../reporting/packages/react-ui",
+    "@prism-reporting/agent-kit": "file:../reporting/packages/agent-kit",
+    "@prism-reporting/core": "file:../reporting/packages/core",
+    "@prism-reporting/mcp-server": "file:../reporting/packages/mcp-server",
+    "@prism-reporting/react-ui": "file:../reporting/packages/react-ui",
     "ai": "^5.0.0",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",

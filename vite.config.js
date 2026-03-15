@@ -12,23 +12,23 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: '@reporting/react-ui/style.css',
+        find: '@prism-reporting/react-ui/style.css',
         replacement: path.resolve(reportingPackagesRoot, 'react-ui/src/style.css'),
       },
       {
-        find: '@reporting/react-ui',
+        find: '@prism-reporting/react-ui',
         replacement: path.resolve(reportingPackagesRoot, 'react-ui/dist/index.js'),
       },
       {
-        find: '@reporting/core',
+        find: '@prism-reporting/core',
         replacement: path.resolve(reportingPackagesRoot, 'core/dist/index.js'),
       },
       {
-        find: '@reporting/agent-kit',
+        find: '@prism-reporting/agent-kit',
         replacement: path.resolve(reportingPackagesRoot, 'agent-kit/dist/index.js'),
       },
       {
-        find: '@reporting/mcp-server',
+        find: '@prism-reporting/mcp-server',
         replacement: path.resolve(reportingPackagesRoot, 'mcp-server/dist/index.js'),
       },
     ],

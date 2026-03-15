@@ -94,7 +94,7 @@
 
 - **Current:** Server imports MCP from a sibling path: `../reporting/packages/mcp-server/dist/http.js`. Build runs `npm run build --prefix ../reporting`.
 - **Requirement:** Choose one of the following and implement consistently:
-  - **Option A (recommended for monorepo):** Add `@reporting/mcp-server` (or equivalent) as a **package dependency** in `package.json` so the starter works when the reporting repo is linked or published; remove hardcoded `../reporting/...` path from server.
+  - **Option A (recommended for monorepo):** Add `@prism-reporting/mcp-server` (or equivalent) as a **package dependency** in `package.json` so the starter works when the reporting repo is linked or published; remove hardcoded `../reporting/...` path from server.
   - **Option B:** If the MCP server stays in the sibling repo, document in README that the starter must be run from the monorepo and list the exact `npm run build` and run order.
 - In both cases, **document** how to run the app (including MCP) so “connect your dataset” does not require guessing.
 

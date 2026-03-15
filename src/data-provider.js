@@ -8,7 +8,7 @@
  * layer must handle those same names.
  */
 
-import { createContractEnforcedDataProvider } from '@reporting/core';
+import { createContractEnforcedDataProvider } from '@prism-reporting/core';
 import { getQueryCatalog } from './query-catalog.js';
 import { getInitiatives } from './data/initiatives.js';
 import { getRoadmapItems } from './data/roadmap-items.js';
